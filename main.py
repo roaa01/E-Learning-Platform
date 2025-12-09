@@ -1,9 +1,7 @@
 import customtkinter as ctk
-from pymongo import MongoClient
 from database.authservice import auth_servise
 from patterns.factory import UserFactory
 from database.seed import init_db, get_database, ensure_collections_and_indexes
-from database.authservice import auth_servise
 
 # Initialize and seed the database
 db = init_db()
@@ -15,14 +13,6 @@ if db is not None:
     # Now you can use service.sign_up(...) and service.log_in(...)
 else:
     print("Database connection failed. Authentication will not work.")
-# -----------------------------
-# Database Setup
-# -----------------------------
-client = MongoClient("mongodb://localhost:27017/")
-db = client["e_learning_platform"]
-users_collection = db["users"]
-
-service = auth_servise(users_collection)
 
 # -----------------------------
 # CustomTkinter Setup
@@ -54,12 +44,12 @@ role_option = ctk.CTkComboBox(
 role_option.pack(pady=5)
 
 
-# Username
-username_label = ctk.CTkLabel(app, text="Username")
-username_label.pack()
+# name
+name_label = ctk.CTkLabel(app, text="name")
+name_label.pack()
 
-username_entry = ctk.CTkEntry(app, width=250)
-username_entry.pack(pady=5)
+name_entry = ctk.CTkEntry(app, width=250)
+name_entry.pack(pady=5)
 
 
 # Email
@@ -82,15 +72,19 @@ password_entry.pack(pady=5)
 # Button Handlers
 # -----------------------------
 def handle_signup():
-    role = role_option.get()
-    username = username_entry.get()
+    # Normalize role to expected lowercase values used by the service/factory
+    raw_role = role_option.get()
+    role = (raw_role or "").strip().lower()
+    if role == "":
+        role = "student"
+    name = name_entry.get()
     email = email_entry.get()
     password = password_entry.get()
 
-    user = service.sign_up(role, username, email, password)
+    user = service.sign_up(role, name, email, password)
 
     if user:
-        msg_label.configure(text=f"Sign up success: {user.username}", text_color="green")
+        msg_label.configure(text=f"Sign up success: {user.name}", text_color="green")
     else:
         msg_label.configure(text="Sign up failed", text_color="red")
 
@@ -100,12 +94,13 @@ def handle_login():
     password = password_entry.get()
 
     user = service.log_in(email, password)
-
+    print("trying to login",email,password)
     if user:
         msg_label.configure(
-            text=f"Logged in: {user.username} ({user.role})",
-            text_color="green"
+            text=f"Logged in: {user.name} ({user.role})",
+            text_color="green"            
         )
+
     else:
         msg_label.configure(text="Login failed", text_color="red")
 

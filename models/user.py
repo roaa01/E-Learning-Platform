@@ -3,11 +3,11 @@ from typing import Optional
 from datetime import datetime
 from patterns.factory import UserFactory
 class User:
-    def __init__(self, id: Optional[str], username: str, email: str,
+    def __init__(self, id: Optional[str], name: str, email: str,
                  role: str, full_name: Optional[str] = None,
                  password_hash: Optional[str] = None):
         self.id = id
-        self.username = username
+        self.name = name
         self.email = email
         self.role = role
         self.full_name = full_name
@@ -26,8 +26,8 @@ class User:
             self.email = email
 
 class Student(User):
-    def __init__(self, id: Optional[str], username: str, email: str, full_name: Optional[str] = None, password_hash: Optional[str] = None):
-        super().__init__(id, username, email, "student", full_name, password_hash)
+    def __init__(self, id: Optional[str], name: str, email: str, full_name: Optional[str] = None, password_hash: Optional[str] = None):
+        super().__init__(id, name, email, "student", full_name, password_hash)
 
     def request_enrollment(self, course_id: str):
         return {
@@ -42,8 +42,8 @@ class Student(User):
 
         
 class Instructor(User):
-    def __init__(self, id: Optional[str], username: str, email: str, full_name: Optional[str] = None, password_hash: Optional[str] = None):
-        super().__init__(id, username, email, "instructor", full_name, password_hash)
+    def __init__(self, id: Optional[str], name: str, email: str, full_name: Optional[str] = None, password_hash: Optional[str] = None):
+        super().__init__(id, name, email, "instructor", full_name, password_hash)
     def get_created_courses(self):
        try:
         courses = self.db.get_collection("courses").find(

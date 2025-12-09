@@ -7,38 +7,55 @@ from models.user import User
 class auth_servise:
     def __init__(self, user_collection):
         self.users = user_collection
-    def sign_up(self, role, username, email, password, full_name=None):
-        user = UserFactory.create_user(
-            role,
-            id=None,
-            username=username,
-            email=email,
-            full_name=full_name,
-            password_hash=None
-        )
-        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-        user.password_hash = password_hash
-
-        data = {
-            "username": username,
-            "email": email,
-            "role": role,
-            "full_name": full_name,
-            "password_hash": password_hash,
-            "created_at": datetime.now()
-        }
-
+    def sign_up(self, role, name, email, password, full_name=None):
+        # Normalize role to lowercase for the factory and DB
         try:
-            result = self.users.insert_one(data)
-            user.id = str(result.inserted_id)
-            return user
-        except DuplicateKeyError:
+            role_norm = (role or "").strip().lower()
+
+            # Build user object (factory) and DB document
+            user = UserFactory.create_user(
+                role_norm,
+                id=None,
+                name=name,
+                email=email,
+                password_hash=None,
+            )
+
+            password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+            user.password_hash = password_hash
+
+            # Build document with role-specific fields
+            data = {
+                "name": name,
+                "email": email,
+                "password_hash": password_hash,
+                "role": role_norm,
+            }
+
+            # Add role-specific fields to the document
+            if role_norm == "instructor":
+                data["courses_teaching"] = []
+            elif role_norm == "student":
+                data["enrolled_courses"] = []
+            data["created_at"] = datetime.now()
+
+
+            try:
+                result = self.users.insert_one(data)
+                user.id = str(result.inserted_id)
+                return user
+            except DuplicateKeyError:
+                # Email already exists
+                return None
+        except Exception as e:
+            # Unexpected error (factory mismatch, validation, etc.)
+            print(f"sign_up error: {e}")
             return None
-    def log_in(self, email_or_username, password):
+    def log_in(self, email_or_name, password):
         user_doc = self.users.find_one({
             "$or": [
-                {"email": email_or_username},
-                {"username": email_or_username}
+                {"email": email_or_name},
+                {"name": email_or_name}
             ]
         })
 
@@ -49,13 +66,15 @@ class auth_servise:
             return None
 
         # Create correct User object using factory
+        # Some seeded documents may use 'name' instead of 'name', or may be missing name.
+        name_value = user_doc.get("name") or user_doc.get("name") or user_doc.get("email")
         return UserFactory.create_user(
             user_doc["role"],
             id=str(user_doc["_id"]),
-            username=user_doc["username"],
-            email=user_doc["email"],
+            name=name_value,
+            email=user_doc.get("email"),
             full_name=user_doc.get("full_name"),
-            password_hash=user_doc["password_hash"]
+            password_hash=user_doc.get("password_hash")
         )
     def update_profile(self, user: User, full_name=None, email=None):
         if user.id is None:
