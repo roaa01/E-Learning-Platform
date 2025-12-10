@@ -1,31 +1,63 @@
-# models/course.py
-from dataclasses import dataclass, field
-from typing import List, Optional, Dict
+from dataclasses import dataclass, field, asdict
+from typing import List, Optional, Dict, Any
 from datetime import datetime
+from bson import ObjectId
 
 
+@dataclass
 class Lesson:
-     def __init__(self, id,moduleId,title, content,type):
-        self.title = title
-        self.content = conten
-        self.id = id
-        self.moduleId = moduleId
-        self.type = type
+    id: Optional[str] = None
+    title: str = ""
+    content: str = ""
+    type: str = ""
+    resources: List[Dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "content": self.content,
+            "type": self.type,
+            "resources": self.resources,
+        }
+
+
+@dataclass
 class Module:
-    def __init__(self, id,courseId,title, lessons: Optional[List[Lesson]] = None):
-        self.id = id
-        self.courseId = courseId
-        self.title = title
-        self.lessons = lessons if lessons is not None else []
+    id: Optional[str] = None
+    title: str = ""
+    lessons: List[Lesson] = field(default_factory=list)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "lessons": [l.to_dict() for l in self.lessons],
+        }
+
+
+@dataclass
 class Course:
-    def __init__(self, id,title, description,instructorId,category,createdDate, modules: Optional[List[Module]] = None):
-        self.id = id
-        self.instructorId = instructorId
-        self.category = category
-        self.createdDate = createdDate
-        self.title = title
-        self.description = description
-        self.modules = modules if modules is not None else []
+    id: Optional[str] = None
+    title: str = ""
+    description: str = ""
+    instructorId: Optional[str] = None
+    category: str = ""
+    status: str = "draft"  # draft or published
+    createdDate: datetime = field(default_factory=datetime.utcnow)
+    modules: List[Module] = field(default_factory=list)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "instructorId": self.instructorId,
+            "category": self.category,
+            "createdDate": self.createdDate,
+            "modules": [m.to_dict() for m in self.modules],
+            "status": self.status,
+        }
 
     def __str__(self):
         return f"Course(title={self.title}, modules={len(self.modules)})"

@@ -68,7 +68,13 @@ def ensure_collections_and_indexes():
     users.create_index("email", unique=True)
     
     courses = db.get_collection("courses")
-    courses.create_index("slug", unique=True)
+    # Remove old slug index if it exists to avoid duplicate key errors with null values
+    try:
+        courses.drop_index("slug_1")
+    except Exception:
+        pass
+    # Create index on id field instead for faster lookups
+    courses.create_index("id", unique=True)
     
     enrollments = db.get_collection("enrollments")
     enrollments.create_index([("user_id", 1), ("course_id", 1)], unique=True)
@@ -79,6 +85,7 @@ def ensure_collections_and_indexes():
     # migrate any existing plaintext passwords to hashed field, then seed
     migrate_plain_passwords()
     seed_initial_data()
+    seed_initial_courses()
 
 def seed_initial_data():
     "Seed initial admin user and sample data"
@@ -90,7 +97,7 @@ def seed_initial_data():
             "_id": ObjectId(),
             "name": "admin",
             "email": "admin@elearning.com",
-            "password_hash": bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode(),
+            "password_hash": bcrypt.hashpw("123".encode(), bcrypt.gensalt()).decode(),
             "role": "admin",
             "created_at": datetime.utcnow(),
         }
@@ -103,7 +110,7 @@ def seed_initial_data():
             "_id": ObjectId(),
             "name": "John Doe",
             "email": "instructor@elearning.com",
-            "password_hash": bcrypt.hashpw("instructor123".encode(), bcrypt.gensalt()).decode(),
+            "password_hash": bcrypt.hashpw("123".encode(), bcrypt.gensalt()).decode(),
             "role": "instructor",
             "courses_teaching": [],
             "created_at": datetime.utcnow(),
@@ -117,7 +124,7 @@ def seed_initial_data():
             "_id": ObjectId(),
             "name": "Alice Smith",
             "email": "student1@elearning.com",
-            "password_hash": bcrypt.hashpw("student123".encode(), bcrypt.gensalt()).decode(),
+            "password_hash": bcrypt.hashpw("123".encode(), bcrypt.gensalt()).decode(),
             "role": "student",
             "enrolled_courses": [],
             "created_at": datetime.utcnow(),
@@ -131,7 +138,7 @@ def seed_initial_data():
             "_id": ObjectId(),
             "name": "Bob Johnson",
             "email": "student2@elearning.com",
-            "password_hash": bcrypt.hashpw("student123".encode(), bcrypt.gensalt()).decode(),
+            "password_hash": bcrypt.hashpw("123".encode(), bcrypt.gensalt()).decode(),
             "role": "student",
             "enrolled_courses": [],
             "created_at": datetime.utcnow(),
@@ -160,6 +167,88 @@ def migrate_plain_passwords():
             print(f"Migrated password for user {d.get('email') or d.get('_id')}")
         except Exception as e:
             print(f"Failed to migrate user {d.get('email') or d.get('_id')}: {e}")
+
+
+def seed_initial_courses():
+    """Seed two sample courses for testing."""
+    db = get_database()
+    courses = db.get_collection("courses")
+    
+    # Course 1: Python Basics
+    if courses.count_documents({"title": "Python Basics"}) == 0:
+        course1 = {
+            "id": str(ObjectId()),
+            "title": "Python Basics",
+            "description": "Learn the fundamentals of Python programming including variables, data types, control flow, and functions.",
+            "instructorId": "instructor_123",
+            "category": "Programming",
+            "status": "published",
+            "createdDate": datetime.utcnow(),
+            "modules": [
+                {
+                    "id": str(ObjectId()),
+                    "title": "Introduction to Python",
+                    "lessons": [
+                        {
+                            "id": str(ObjectId()),
+                            "title": "Getting Started",
+                            "content": "Python is a versatile programming language. In this lesson, we'll set up your environment and run your first program.",
+                            "type": "video",
+                            "resources": []
+                        },
+                        {
+                            "id": str(ObjectId()),
+                            "title": "Variables and Data Types",
+                            "content": "Learn about Python's basic data types: strings, integers, floats, and booleans.",
+                            "type": "video",
+                            "resources": []
+                        }
+                    ]
+                }
+            ]
+        }
+        courses.insert_one(course1)
+        print("Python Basics course created")
+    else:
+        print("Python Basics course already exists")
+
+    # Course 2: Web Development with Django
+    if courses.count_documents({"title": "Web Development with Django"}) == 0:
+        course2 = {
+            "id": str(ObjectId()),
+            "title": "Web Development with Django",
+            "description": "Master web development using Django framework. Build full-stack web applications from scratch.",
+            "instructorId": "instructor_123",
+            "category": "Web Development",
+            "status": "published",
+            "createdDate": datetime.utcnow(),
+            "modules": [
+                {
+                    "id": str(ObjectId()),
+                    "title": "Django Basics",
+                    "lessons": [
+                        {
+                            "id": str(ObjectId()),
+                            "title": "Setting up Django",
+                            "content": "Install Django and create your first project. Understand the project structure and how Django works.",
+                            "type": "video",
+                            "resources": []
+                        },
+                        {
+                            "id": str(ObjectId()),
+                            "title": "Models and Databases",
+                            "content": "Learn how to define models and interact with databases using Django's ORM.",
+                            "type": "video",
+                            "resources": []
+                        }
+                    ]
+                }
+            ]
+        }
+        courses.insert_one(course2)
+        print("Web Development with Django course created")
+    else:
+        print("Web Development with Django course already exists")
 
 if __name__ == "__main__":
     init_db()
