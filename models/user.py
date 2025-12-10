@@ -2,6 +2,8 @@
 from typing import Optional
 from datetime import datetime
 from patterns.factory import UserFactory
+from bson import ObjectId
+
 class User:
     def __init__(self, id: Optional[str], name: str, email: str,
                  role: str, full_name: Optional[str] = None,
@@ -30,9 +32,11 @@ class Student(User):
         super().__init__(id, name, email, "student", full_name, password_hash)
 
     def request_enrollment(self, course_id: str):
+        from bson import ObjectId
+        from datetime import datetime
         return {
-            "student_id": self.id,
-            "course_id": course_id,
+            "student_id": ObjectId(self.id),
+            "course_id": course_id,  # Keep as string to match course.id field
             "status": "pending",
             "requested_at": datetime.now()
         }

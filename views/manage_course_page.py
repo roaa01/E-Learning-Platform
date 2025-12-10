@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from database.course_service import CourseService
-
+from database.EnrollmentService import EnrollmentService
+from database.seed import get_database
 
 class ManageCoursePage(ctk.CTkFrame):
     """Page for instructors to manage course modules and lessons"""
@@ -9,6 +10,13 @@ class ManageCoursePage(ctk.CTkFrame):
         super().__init__(master)
         self.page_manager = page_manager
         self.course_service = CourseService()
+        
+        db = get_database()
+        self.enrollment_service = EnrollmentService(
+            db.get_collection("enrollments"),
+            db.get_collection("courses")
+        )
+        
         self.course_id = None
         self.course_data = None
         self.status_btn = None
@@ -44,6 +52,17 @@ class ManageCoursePage(ctk.CTkFrame):
             hover_color="gray"
         )
         self.status_btn.pack(side="right", padx=(6, 0))
+        
+        # View Enrollments Button
+        self.enrollments_btn = ctk.CTkButton(
+            header_frame,
+            text="Enrollments",
+            command=self.show_enrollments_dialog,
+            width=100,
+            fg_color="purple",
+            hover_color="darkviolet"
+        )
+        self.enrollments_btn.pack(side="right", padx=(6, 0))
         
         back_btn = ctk.CTkButton(
             header_frame,
@@ -472,3 +491,48 @@ class ManageCoursePage(ctk.CTkFrame):
     def go_back(self):
         """Go back to dashboard"""
         self.page_manager.show_page("dashboard")
+
+    def show_enrollments_dialog(self):
+        """Show pending enrollments for this course"""
+        if not self.course_id:
+            return
+
+        dialog = ctk.CTkToplevel(self)
+        dialog.title(f"Enrollment Requests - {self.course_data.get('title')}")
+        dialog.geometry("500x400")
+        
+        # Header
+        ctk.CTkLabel(dialog, text="Pending Requests", font=("Arial", 16, "bold")).pack(pady=10)
+        
+        # Requests list
+        scroll = ctk.CTkScrollableFrame(dialog)
+        scroll.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        requests = self.enrollment_service.get_pending_enrollments(self.course_id)
+        
+        if not requests:
+            ctk.CTkLabel(scroll, text="No pending requests", text_color="gray").pack(pady=20)
+        else:
+            for req in requests:
+                req_frame = ctk.CTkFrame(scroll, fg_color="gray20")
+                req_frame.pack(fill="x", pady=5)
+                
+                # Student Info
+                info = ctk.CTkFrame(req_frame, fg_color="transparent")
+                info.pack(side="left", padx=10, pady=10)
+                
+                ctk.CTkLabel(info, text=req.get("student_name", "Unknown"), font=("Arial", 12, "bold")).pack(anchor="w")
+                ctk.CTkLabel(info, text=req.get("student_email", ""), font=("Arial", 10)).pack(anchor="w")
+                
+                # Approve Button
+                def approve(eid=req.get("enrollment_id")):
+                    if self.enrollment_service.approve_enrollment(eid):
+                        req_frame.destroy()
+                        # Refresh list to see if empty
+                        if not scroll.winfo_children():
+                             ctk.CTkLabel(scroll, text="No pending requests", text_color="gray").pack(pady=20)
+                        self.show_message("Enrollment approved", "green")
+                    else:
+                        self.show_message("Failed to approve", "red")
+                        
+                ctk.CTkButton(req_frame, text="Approve", command=approve, fg_color="green", width=80).pack(side="right", padx=10)

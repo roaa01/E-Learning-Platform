@@ -3,4 +3,5 @@ from .dashboard_page import DashboardPage
 from .page_manager import PageManager
 from .login import LoginPage
 from .signup import SignupPage
+from .enrollment_request_pages import EnrollmentRequestsPage
 __all__ = ["AuthPage", "DashboardPage", "PageManager", "LoginPage", "SignupPage"]

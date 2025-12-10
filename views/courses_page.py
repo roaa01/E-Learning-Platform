@@ -1,6 +1,8 @@
 import customtkinter as ctk
 from database.course_service import CourseService
-
+from database.EnrollmentService import EnrollmentService
+from models.user import Student
+from database.seed import get_database
 
 class CoursesPage(ctk.CTkFrame):
     """Page to display all available courses"""
@@ -9,7 +11,12 @@ class CoursesPage(ctk.CTkFrame):
         super().__init__(master)
         self.page_manager = page_manager
         self.course_service = CourseService()
-        
+        # Add EnrollmentService initialization
+        db = get_database()
+        self.enrollment_service = EnrollmentService(
+            db.get_collection("enrollments"),
+            db.get_collection("courses")
+        )
         self.create_widgets()
         
     def create_widgets(self):
@@ -44,9 +51,11 @@ class CoursesPage(ctk.CTkFrame):
         self.filter_id = filter_id
         self.refresh_courses()
 
+    def send_enrollment_request(self, student, course_id):
+        """Call EnrollmentService to send an enrollment request for a student and provide feedback."""
+        success = self.enrollment_service.enroll_student(student, course_id)
+        return success
 
-
-    
     def create_course_card(self, parent, course):
         """Create a card widget for a single course"""
         card = ctk.CTkFrame(parent, fg_color="gray20")
@@ -98,6 +107,10 @@ class CoursesPage(ctk.CTkFrame):
         # View button
         view_btn = ctk.CTkButton(actions, text="View", command=lambda: self.view_course_details(course.get("id")), width=80, height=28)
         view_btn.pack(side="right", padx=5)
+        
+        user = self.page_manager.get_user()
+        enroll_btn = ctk.CTkButton(actions, text="Enroll", command=lambda: self.handle_enroll(user, course.get("id"), actions), width=80, height=28)
+        enroll_btn.pack(side="right", padx=20)
 
         # Show edit/delete only for admin or course instructor
         user = self.page_manager.get_user()
@@ -127,6 +140,18 @@ class CoursesPage(ctk.CTkFrame):
                                     command=lambda: self.confirm_delete(course.get("id")), width=80, height=28)
             del_btn.pack(side="right", padx=5)
     
+    def handle_enroll(self, user, course_id, parent_widget):
+        """Handle enrollment request and show feedback in the course card."""
+        success = self.send_enrollment_request(user, course_id)
+        for widget in parent_widget.winfo_children():
+            if isinstance(widget, ctk.CTkLabel) and widget.cget("text").startswith("Enrollment"):  # Remove old feedback
+                widget.destroy()
+        if success:
+            feedback = ctk.CTkLabel(parent_widget, text="Enrollment request sent!", text_color="green")
+        else:
+            feedback = ctk.CTkLabel(parent_widget, text="Already requested or enrolled.", text_color="orange")
+        feedback.pack(side="left", padx=6)
+
     def view_course_details(self, course_id):
         """Show a dialog with course details: modules, lessons, resources."""
         course = self.course_service.get_course(course_id)
@@ -135,7 +160,7 @@ class CoursesPage(ctk.CTkFrame):
             dlg.title("Course Not Found")
             ctk.CTkLabel(dlg, text="Course not found or has been removed.").pack(padx=20, pady=20)
             return
-
+        user = self.page_manager.get_user()
         dlg = ctk.CTkToplevel(self)
         dlg.title(course.get("title", "Course Details"))
         dlg.geometry("700x600")
@@ -176,6 +201,7 @@ class CoursesPage(ctk.CTkFrame):
         footer.pack(fill="x", padx=12, pady=8)
 
         # If current user is instructor for this course or admin, show Manage button
+        can_manage = False
         try:
             if user:
                 role = getattr(user, 'role', None)
@@ -199,6 +225,16 @@ class CoursesPage(ctk.CTkFrame):
                 self.page_manager.show_page('manage_course')
 
             ctk.CTkButton(footer, text="Manage Course", command=go_manage, fg_color="blue").pack(side="left", padx=6)
+
+        # Enroll button for students
+        if user and getattr(user, 'role', None) == 'student':
+            def enroll():
+                success = self.enrollment_service.enroll_student(user, course_id)
+                if success:
+                    ctk.CTkLabel(footer, text="Enrollment request sent!", text_color="green").pack(side="left", padx=6)
+                else:
+                    ctk.CTkLabel(footer, text="Already requested or enrolled.", text_color="orange").pack(side="left", padx=6)
+            ctk.CTkButton(footer, text="Request Enrollment", command=enroll, fg_color="blue").pack(side="left", padx=6)
 
         # Enroll or Close
         def close():

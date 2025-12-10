@@ -109,6 +109,7 @@ class DashboardPage(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="Create Course", command=lambda: self.page_manager.show_page("create_course")).pack(pady=5)
         ctk.CTkButton(btn_frame, text="Student Analytics").pack(pady=5)
         ctk.CTkButton(btn_frame, text="Student Analytics").pack(pady=5)
+        ctk.CTkButton(btn_frame, text="Enrollment Requests", command=lambda: self.page_manager.show_page("enrollment_requests")).pack(pady=5)
         ctk.CTkButton(btn_frame, text="View All Courses", command=self.show_all_courses).pack(pady=5)
 
     def show_all_courses(self):

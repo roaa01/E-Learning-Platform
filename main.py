@@ -13,6 +13,7 @@ from views.courses_page import CoursesPage
 from views.create_course_page import CreateCoursePage
 from views.manage_course_page import ManageCoursePage
 from views.manage_resources_page import ManageResourcesPage
+from views.enrollment_requests_page import EnrollmentRequestsPage
 
 # -----------------------------
 # Database Setup
@@ -51,6 +52,7 @@ page_manager.add_page("courses", CoursesPage)
 page_manager.add_page("create_course", CreateCoursePage)
 page_manager.add_page("manage_course", ManageCoursePage)
 page_manager.add_page("manage_resources", ManageResourcesPage)
+page_manager.add_page("enrollment_requests", EnrollmentRequestsPage)
 
 # Show initial page (auth page)
 page_manager.show_page("auth")

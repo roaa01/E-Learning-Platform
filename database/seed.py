@@ -77,7 +77,12 @@ def ensure_collections_and_indexes():
     courses.create_index("id", unique=True)
     
     enrollments = db.get_collection("enrollments")
-    enrollments.create_index([("user_id", 1), ("course_id", 1)], unique=True)
+    # Drop old index if it exists
+    try:
+        enrollments.drop_index("user_id_1_course_id_1")
+    except Exception:
+        pass
+    enrollments.create_index([("student_id", 1), ("course_id", 1)], unique=True)
     
     assignments = db.get_collection("assignments")
     assignments.create_index("course_id")
