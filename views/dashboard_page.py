@@ -6,66 +6,78 @@ class DashboardPage(ctk.CTkFrame):
     def __init__(self, master, page_manager):
         super().__init__(master)
         self.page_manager = page_manager
+
         
+    def on_show(self):
+        # Refresh dashboard content when shown
+        for widget in self.winfo_children():
+            widget.destroy()
         self.create_widgets()
+
         
     def create_widgets(self):
         user = self.page_manager.get_user()
-        
+        print("[DashboardPage] user:", user, "type:", type(user), "attrs:", dir(user))
         # Welcome Section
         welcome_frame = ctk.CTkFrame(self)
         welcome_frame.pack(pady=30, padx=30, fill="x")
-        
+        # Robust welcome label
+        display_name = getattr(user, 'full_name', None) or getattr(user, 'username', None) or getattr(user, 'name', None) or str(user)
         welcome_label = ctk.CTkLabel(
             welcome_frame,
-            text=f"Welcome, {user.name}!",
+            text=f"Welcome, {display_name}!",
             font=("Arial", 28, "bold")
         )
         welcome_label.pack(pady=10)
-        
+
+        role = getattr(user, 'role', None)
+        role_text = f"Role: {role.capitalize()}" if role else "Role: Unknown"
         role_label = ctk.CTkLabel(
             welcome_frame,
-            text=f"Role: {user.role.capitalize()}",
+            text=role_text,
             font=("Arial", 16)
         )
         role_label.pack(pady=5)
-        
+
+        email = getattr(user, 'email', None)
+        email_text = f"Email: {email}" if email else "Email: Unknown"
         email_label = ctk.CTkLabel(
             welcome_frame,
-            text=f"Email: {user.email}",
+            text=email_text,
             font=("Arial", 14),
             text_color="gray"
         )
         email_label.pack(pady=5)
-        
-        # Main Content Area
+
+    # Main Content Area
         content_frame = ctk.CTkFrame(self)
         content_frame.pack(pady=20, padx=30, fill="both", expand=True)
-        
+
         content_title = ctk.CTkLabel(
-            content_frame,
-            text="Dashboard",
-            font=("Arial", 20, "bold")
+        content_frame,
+        text="Dashboard",
+        font=("Arial", 20, "bold")
         )
         content_title.pack(pady=20)
-        
-        # Role-specific content
+
+    # Role-specific content
         if user.role == "student":
             self.create_student_content(content_frame)
         elif user.role == "instructor":
             self.create_instructor_content(content_frame)
         elif user.role == "admin":
             self.create_admin_content(content_frame)
-        
-        # Logout Button
+
+    # Logout Button
         logout_btn = ctk.CTkButton(
             self,
-            text="Logout",
-            command=self.handle_logout,
-            fg_color="red",
-            hover_color="darkred"
+        text="Logout",
+        command=self.handle_logout,
+        fg_color="red",
+        hover_color="darkred"
         )
         logout_btn.pack(pady=20)
+
         
     def create_student_content(self, parent):
         info = ctk.CTkLabel(
@@ -78,7 +90,7 @@ class DashboardPage(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(parent)
         btn_frame.pack(pady=10)
         
-        ctk.CTkButton(btn_frame, text="View Courses").pack(pady=5)
+        ctk.CTkButton(btn_frame, text="View Courses", command=lambda: self.page_manager.show_page("courses")).pack(pady=5)
         ctk.CTkButton(btn_frame, text="My Progress").pack(pady=5)
         ctk.CTkButton(btn_frame, text="Assignments").pack(pady=5)
         
@@ -94,9 +106,9 @@ class DashboardPage(ctk.CTkFrame):
         btn_frame.pack(pady=10)
         
         ctk.CTkButton(btn_frame, text="My Courses").pack(pady=5)
-        ctk.CTkButton(btn_frame, text="Create Course").pack(pady=5)
+        ctk.CTkButton(btn_frame, text="Create Course", command=lambda: self.page_manager.show_page("create_course")).pack(pady=5)
         ctk.CTkButton(btn_frame, text="Student Analytics").pack(pady=5)
-        
+        ctk.CTkButton(btn_frame, text="View All Courses", command=lambda: self.page_manager.show_page("courses")).pack(pady=5)
     def create_admin_content(self, parent):
         info = ctk.CTkLabel(
             parent,
