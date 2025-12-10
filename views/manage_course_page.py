@@ -11,6 +11,7 @@ class ManageCoursePage(ctk.CTkFrame):
         self.course_service = CourseService()
         self.course_id = None
         self.course_data = None
+        self.status_btn = None
         
         self.create_widgets()
         
@@ -18,6 +19,7 @@ class ManageCoursePage(ctk.CTkFrame):
         """Set the course to manage"""
         self.course_id = course_id
         self.course_data = self.course_service.get_course(course_id)
+        self.update_status_ui()
         self.refresh_display()
     
     def create_widgets(self):
@@ -31,6 +33,17 @@ class ManageCoursePage(ctk.CTkFrame):
             font=("Arial", 24, "bold")
         )
         self.title_label.pack(side="left")
+        
+        # Status toggle (will be enabled for instructors/admins)
+        self.status_btn = ctk.CTkButton(
+            header_frame,
+            text="Status: -",
+            command=self.toggle_visibility,
+            width=140,
+            fg_color="gray",
+            hover_color="gray"
+        )
+        self.status_btn.pack(side="right", padx=(6, 0))
         
         back_btn = ctk.CTkButton(
             header_frame,
@@ -85,14 +98,29 @@ class ManageCoursePage(ctk.CTkFrame):
             height=30
         )
         add_lesson_btn.pack(fill="x", pady=(10, 0))
+           # Bottom section with Done button centered
+        bottom_frame = ctk.CTkFrame(self)
+        bottom_frame.pack(pady=20, fill="x")
         
+        done_btn = ctk.CTkButton(
+            bottom_frame,
+            text="Done",
+            command=self.go_back,
+            width=120,
+            height=35,
+            fg_color="blue",
+            hover_color="darkblue"
+        )
+        done_btn.pack()
         self.message_label = ctk.CTkLabel(self, text="", font=("Arial", 11), text_color="gray")
         self.message_label.pack(pady=10)
-    
+
     def refresh_display(self):
         """Refresh the modules and details display"""
         if not self.course_data:
             return
+        # keep status UI in sync
+        self.update_status_ui()
         
         # Update title
         self.title_label.configure(text=f"Manage: {self.course_data.get('title', 'Course')}")
@@ -238,6 +266,62 @@ class ManageCoursePage(ctk.CTkFrame):
             font=("Arial", 9)
         )
         delete_btn.pack(side="left", padx=5)
+
+    def update_status_ui(self):
+        """Update status button text and enabled state based on current course and user role"""
+        if not self.course_data:
+            self.status_btn.configure(text="Status: -", fg_color="gray", hover_color="gray")
+            try:
+                self.status_btn.configure(state="disabled")
+            except Exception:
+                pass
+            return
+
+        status = self.course_data.get("status", "draft")
+        # Determine if current user can change visibility
+        user = self.page_manager.get_user()
+        can_manage = False
+        try:
+            if user:
+                role = getattr(user, 'role', None)
+                uid = str(getattr(user, 'id', getattr(user, '_id', None)))
+                if role == 'admin' or (role == 'instructor' and uid and uid == str(self.course_data.get('instructorId'))):
+                    can_manage = True
+        except Exception:
+            can_manage = False
+
+        label = f"Status: {status.capitalize()}"
+        # Update appearance
+        if status == 'published':
+            self.status_btn.configure(text=label, fg_color="green", hover_color="darkgreen")
+        else:
+            self.status_btn.configure(text=label, fg_color="orange", hover_color="darkorange")
+
+        try:
+            if can_manage:
+                self.status_btn.configure(state="normal")
+            else:
+                self.status_btn.configure(state="disabled")
+        except Exception:
+            pass
+
+    def toggle_visibility(self):
+        """Toggle course visibility between published and draft"""
+        if not self.course_id:
+            return
+        current = self.course_data.get('status', 'draft') if self.course_data else 'draft'
+        new_status = 'draft' if current == 'published' else 'published'
+        try:
+            ok = self.course_service.set_visibility(self.course_id, new_status)
+            if ok:
+                # refresh local course data and UI
+                self.course_data = self.course_service.get_course(self.course_id)
+                self.update_status_ui()
+                self.show_message(f"Status set to {new_status}", "green")
+            else:
+                self.show_message("Failed to change status", "red")
+        except Exception as e:
+            self.show_message(f"Error: {e}", "red")
     
     def show_add_module_dialog(self):
         """Show dialog to add a new module"""
@@ -333,8 +417,21 @@ class ManageCoursePage(ctk.CTkFrame):
             self.show_message(f"Error: {str(e)}", "red")
     
     def delete_module(self, index):
-        """Delete a module (placeholder - implement in service)"""
-        self.show_message("Module deletion not yet implemented", "orange")
+        """Delete a module"""
+        modules = self.course_data.get("modules", [])
+        if index >= len(modules):
+            return
+            
+        module_id = modules[index].get("id")
+        
+        # Confirm dialog could be added here, but for now direct delete
+        success = self.course_service.delete_module(self.course_id, module_id)
+        if success:
+            self.course_data = self.course_service.get_course(self.course_id)
+            self.refresh_display()
+            self.show_message("Module deleted successfully", "green")
+        else:
+            self.show_message("Failed to delete module", "red")
     
     def manage_lesson_resources(self, module_index, lesson_index, lesson):
         """Navigate to manage resources page"""
@@ -346,8 +443,27 @@ class ManageCoursePage(ctk.CTkFrame):
         self.page_manager.show_page("manage_resources")
     
     def delete_lesson(self, module_index, lesson_index):
-        """Delete a lesson (placeholder - implement in service)"""
-        self.show_message("Lesson deletion not yet implemented", "orange")
+        """Delete a lesson"""
+        modules = self.course_data.get("modules", [])
+        if module_index >= len(modules):
+            return
+            
+        module = modules[module_index]
+        lessons = module.get("lessons", [])
+        if lesson_index >= len(lessons):
+            return
+            
+        lesson_id = lessons[lesson_index].get("id")
+        module_id = module.get("id")
+        
+        success = self.course_service.delete_lesson(self.course_id, module_id, lesson_id)
+        if success:
+            self.course_data = self.course_service.get_course(self.course_id)
+            self.refresh_display()
+            # If we just deleted the last lesson, display might need adjustment, but refresh handles it
+            self.show_message("Lesson deleted successfully", "green")
+        else:
+            self.show_message("Failed to delete lesson", "red")
     
     def show_message(self, message: str, color: str):
         """Display a message"""

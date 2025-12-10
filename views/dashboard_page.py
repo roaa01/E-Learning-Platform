@@ -90,7 +90,7 @@ class DashboardPage(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(parent)
         btn_frame.pack(pady=10)
         
-        ctk.CTkButton(btn_frame, text="View Courses", command=lambda: self.page_manager.show_page("courses")).pack(pady=5)
+        ctk.CTkButton(btn_frame, text="View Courses", command=self.show_all_courses).pack(pady=5)
         ctk.CTkButton(btn_frame, text="My Progress").pack(pady=5)
         ctk.CTkButton(btn_frame, text="Assignments").pack(pady=5)
         
@@ -105,10 +105,32 @@ class DashboardPage(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(parent)
         btn_frame.pack(pady=10)
         
-        ctk.CTkButton(btn_frame, text="My Courses").pack(pady=5)
+        ctk.CTkButton(btn_frame, text="My Courses", command=self.show_my_courses).pack(pady=5)
         ctk.CTkButton(btn_frame, text="Create Course", command=lambda: self.page_manager.show_page("create_course")).pack(pady=5)
         ctk.CTkButton(btn_frame, text="Student Analytics").pack(pady=5)
-        ctk.CTkButton(btn_frame, text="View All Courses", command=lambda: self.page_manager.show_page("courses")).pack(pady=5)
+        ctk.CTkButton(btn_frame, text="Student Analytics").pack(pady=5)
+        ctk.CTkButton(btn_frame, text="View All Courses", command=self.show_all_courses).pack(pady=5)
+
+    def show_all_courses(self):
+        courses_page = self.page_manager.get_page("courses")
+        courses_page.set_mode("all")
+        self.page_manager.show_page("courses")
+
+    def show_my_courses(self):
+        user = self.page_manager.get_user()
+        if user:
+            # Robust ID extraction: user.id might be None, so check it first
+            uid = getattr(user, 'id', None)
+            if not uid:
+                uid = getattr(user, '_id', None)
+            uid = str(uid) if uid else ""
+            
+            print(f"[Dashboard] Filtering courses for instructor_id: {uid}")
+            courses_page = self.page_manager.get_page("courses")
+            # Set mode to instructor so it fetches courses by this instructor ID
+            courses_page.set_mode("instructor", uid)
+            self.page_manager.show_page("courses")
+
     def create_admin_content(self, parent):
         info = ctk.CTkLabel(
             parent,

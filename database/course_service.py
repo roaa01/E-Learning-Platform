@@ -37,19 +37,51 @@ class CourseService:
         return self.courses.find_one({"id": course_id})
 
     def delete_course(self, course_id: str) -> bool:
-        res = self.courses.delete_one({"_id": ObjectId(course_id)})
-        return res.deleted_count == 1
+        # Try deleting by string `id` field first, then by MongoDB ObjectId
+        try:
+            res = self.courses.delete_one({"id": course_id})
+            if res.deleted_count > 0:
+                return True
+        except Exception:
+            pass
+
+        try:
+            res = self.courses.delete_one({"_id": ObjectId(course_id)})
+            return res.deleted_count == 1
+        except Exception:
+            return False
 
     def update_course(self, course_id: str, updates: Dict[str, Any]) -> bool:
         if "modules" in updates:
             # ensure modules structure is serializable
             updates["modules"] = [m if isinstance(m, dict) else m.to_dict() for m in updates["modules"]]
-        # Try to update by ObjectId first, fall back to id field
+            
+        print(f"[DEBUG] Attempting update for course_id: {course_id}")
+        
+        matched = False
+        
+        # 1. Try to update by MongoDB _id (if course_id is a valid ObjectId)
         try:
-            res = self.courses.update_one({"_id": ObjectId(course_id)}, {"$set": updates})
+            oid = ObjectId(course_id)
+            res = self.courses.update_one({"_id": oid}, {"$set": updates})
+            if res.matched_count > 0:
+                print(f"[DEBUG] Matched by _id")
+                matched = True
         except Exception:
+            # Not a valid ObjectId format, ignore this step
+            pass
+
+        # 2. If not found by _id, try to update by custom 'id' field
+        if not matched:
+            # We don't try/except here because we expect this to work or be the final attempt
             res = self.courses.update_one({"id": course_id}, {"$set": updates})
-        return res.modified_count == 1
+            if res.matched_count > 0:
+                print(f"[DEBUG] Matched by custom id")
+                matched = True
+            else:
+                print(f"[DEBUG] No match found for id: {course_id}")
+
+        return matched
 
     def add_module(self, course_id: str, module_title: str) -> str:
         module = {"id": str(ObjectId()), "title": module_title, "lessons": []}
@@ -102,10 +134,13 @@ class CourseService:
     def set_visibility(self, course_id: str, visibility: str) -> bool:
         if visibility not in ("draft", "published"):
             raise ValueError("status must be 'draft' or 'published'")
-        try:
-            res = self.courses.update_one({"_id": ObjectId(course_id)}, {"$set": {"status": visibility}})
-        except Exception:
-            res = self.courses.update_one({"id": course_id}, {"$set": {"status": visibility}})
+        # Try by string id first, then fall back to ObjectId
+        res = self.courses.update_one({"id": course_id}, {"$set": {"status": visibility}})
+        if res.matched_count == 0:
+            try:
+                res = self.courses.update_one({"_id": ObjectId(course_id)}, {"$set": {"status": visibility}})
+            except Exception:
+                return False
         return res.modified_count == 1
 
     def get_all_courses(self) -> List[Dict[str, Any]]:
@@ -119,3 +154,38 @@ class CourseService:
     def get_courses_by_instructor(self, instructor_id: str) -> List[Dict[str, Any]]:
         """Fetch courses taught by a specific instructor"""
         return list(self.courses.find({"instructorId": instructor_id}))
+
+    def delete_module(self, course_id: str, module_id: str) -> bool:
+        """Delete a module from a course"""
+        # Try by string id first
+        res = self.courses.update_one(
+            {"id": course_id},
+            {"$pull": {"modules": {"id": module_id}}}
+        )
+        if res.matched_count == 0:
+            try:
+                res = self.courses.update_one(
+                    {"_id": ObjectId(course_id)},
+                    {"$pull": {"modules": {"id": module_id}}}
+                )
+            except Exception:
+                return False
+        return res.modified_count > 0
+
+    def delete_lesson(self, course_id: str, module_id: str, lesson_id: str) -> bool:
+        """Delete a lesson from a module"""
+        # Try by string id first
+        res = self.courses.update_one(
+            {"id": course_id, "modules.id": module_id},
+            {"$pull": {"modules.$.lessons": {"id": lesson_id}}}
+        )
+        if res.matched_count == 0:
+            try:
+                res = self.courses.update_one(
+                    {"_id": ObjectId(course_id), "modules.id": module_id},
+                    {"$pull": {"modules.$.lessons": {"id": lesson_id}}}
+                )
+            except Exception:
+                return False
+        return res.modified_count > 0
+

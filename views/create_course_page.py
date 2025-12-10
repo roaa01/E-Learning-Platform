@@ -31,6 +31,8 @@ class CreateCoursePage(ctk.CTkFrame):
             width=80
         )
         back_btn.pack(side="right")
+           
+        
         
         # Scrollable form container
         scroll_frame = ctk.CTkScrollableFrame(self)
@@ -68,11 +70,11 @@ class CreateCoursePage(ctk.CTkFrame):
         status_label.pack(anchor="w", pady=(10, 5))
         self.status_combo = ctk.CTkComboBox(
             form_frame,
-            values=["draft", "published"],
+            values=["published","draft"],
             state="readonly"
         )
         self.status_combo.pack(fill="x", pady=5)
-        self.status_combo.set("draft")
+        self.status_combo.set("published")
         
         # Message Label
         self.message_label = ctk.CTkLabel(
