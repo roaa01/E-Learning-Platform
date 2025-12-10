@@ -16,8 +16,22 @@ class PageManager:
     def get_page(self, name):
         """Get or create a page instance"""
         if name not in self.page_instances:
-            page_class = self.pages[name]
-            self.page_instances[name] = page_class(self.master, self)
+            page_factory = self.pages[name]
+
+            # If the stored value is a class, instantiate it.
+            # If it's a callable factory (e.g. lambda returning an instance), call it.
+            # If it's already an instance (mistakenly registered), use it directly.
+            try:
+                if callable(page_factory):
+                    instance = page_factory(self.master, self)
+                else:
+                    instance = page_factory
+            except TypeError:
+                # Fallback: if callable invocation fails because the stored
+                # object was actually an instance, just use it directly.
+                instance = page_factory
+
+            self.page_instances[name] = instance
         return self.page_instances[name]
     def show_page(self, name, **kwargs):
         """Show a specific page by name (reuse instance)"""
