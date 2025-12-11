@@ -1,0 +1,184 @@
+import customtkinter as ctk
+from tkinter import messagebox
+from database.EnrollmentService import EnrollmentService
+from database.seed import get_database
+
+class MyCoursesPage(ctk.CTkFrame):
+    """Page for students to view their enrolled (approved) courses"""
+    
+    def __init__(self, master, page_manager):
+        super().__init__(master)
+        self.page_manager = page_manager
+        
+        db = get_database()
+        self.enrollment_service = EnrollmentService(
+            db.get_collection("enrollments"),
+            db.get_collection("courses")
+        )
+        
+    def on_show(self):
+        """Refresh content when page is shown"""
+        for widget in self.winfo_children():
+            widget.destroy()
+        self.create_widgets()
+        
+    def create_widgets(self):
+        # Header
+        header_frame = ctk.CTkFrame(self)
+        header_frame.pack(pady=20, padx=30, fill="x")
+        
+        title_label = ctk.CTkLabel(
+            header_frame,
+            text="My Enrolled Courses",
+            font=("Arial", 24, "bold")
+        )
+        title_label.pack(side="left")
+        
+        refresh_btn = ctk.CTkButton(
+            header_frame,
+            text="Refresh",
+            command=self.on_show,
+            width=80
+        )
+        refresh_btn.pack(side="right", padx=5)
+        
+        back_btn = ctk.CTkButton(
+            header_frame,
+            text="Back",
+            command=self.go_back,
+            width=80
+        )
+        back_btn.pack(side="right")
+        
+        # Scrollable courses container
+        scroll_frame = ctk.CTkScrollableFrame(self)
+        scroll_frame.pack(pady=20, padx=30, fill="both", expand=True)
+        
+        # Fetch enrolled courses
+        user = self.page_manager.get_user()
+        courses = self.enrollment_service.get_enrolled_courses(user)
+        
+        if not courses:
+            no_courses_label = ctk.CTkLabel(
+                scroll_frame,
+                text="You are not enrolled in any courses yet.\\n\\nBrowse available courses to get started!",
+                font=("Arial", 14),
+                text_color="gray"
+            )
+            no_courses_label.pack(pady=20)
+            
+            browse_btn = ctk.CTkButton(
+                scroll_frame,
+                text="Browse Courses",
+                command=lambda: self.page_manager.show_page("courses"),
+                width=150,
+                fg_color="green",
+                hover_color="darkgreen"
+            )
+            browse_btn.pack(pady=10)
+        else:
+            # Display enrolled courses
+            courses_count_label = ctk.CTkLabel(
+                scroll_frame,
+                text=f"You are enrolled in {len(courses)} course(s)",
+                font=("Arial", 12),
+                text_color="lightgreen"
+            )
+            courses_count_label.pack(pady=(0, 15), anchor="w")
+            
+            for course in courses:
+                self.create_course_card(scroll_frame, course)
+    
+    def create_course_card(self, parent, course):
+        """Create a card widget for an enrolled course"""
+        card = ctk.CTkFrame(parent, fg_color="gray20", border_width=2, border_color="green")
+        card.pack(pady=10, padx=0, fill="x")
+        
+        # Course Title
+        title = ctk.CTkLabel(
+            card,
+            text=course.get("title", "Untitled Course"),
+            font=("Arial", 16, "bold")
+        )
+        title.pack(pady=(15, 5), padx=15, anchor="w")
+        
+        # Enrollment status badge
+        status_badge = ctk.CTkLabel(
+            card,
+            text="✓ Enrolled",
+            font=("Arial", 10, "bold"),
+            text_color="lightgreen",
+            fg_color="darkgreen",
+            corner_radius=5
+        )
+        status_badge.pack(pady=5, padx=15, anchor="w")
+        
+        # Course Description
+        desc = ctk.CTkLabel(
+            card,
+            text=course.get("description", "No description available"),
+            font=("Arial", 12),
+            text_color="gray",
+            wraplength=500,
+            justify="left"
+        )
+        desc.pack(pady=5, padx=15, anchor="w")
+        
+        # Course Info
+        info_frame = ctk.CTkFrame(card, fg_color="transparent")
+        info_frame.pack(pady=5, padx=15, fill="x")
+        
+        category = course.get("category", "N/A")
+        category_label = ctk.CTkLabel(
+            info_frame,
+            text=f"📚 Category: {category}",
+            font=("Arial", 11),
+            text_color="lightblue"
+        )
+        category_label.pack(side="left", padx=5)
+        
+        # Action Buttons
+        btn_frame = ctk.CTkFrame(card, fg_color="transparent")
+        btn_frame.pack(pady=(5, 15), padx=15, anchor="e")
+        
+        # View Course Button
+        view_btn = ctk.CTkButton(
+            btn_frame,
+            text="Open Course",
+            command=lambda: self.open_course(course),
+            width=120,
+            height=30,
+            fg_color="blue",
+            hover_color="darkblue"
+        )
+        view_btn.pack(side="left", padx=5)
+        
+        # View Progress Button
+        progress_btn = ctk.CTkButton(
+            btn_frame,
+            text="My Progress",
+            command=lambda: self.view_progress(course),
+            width=120,
+            height=30
+        )
+        progress_btn.pack(side="left", padx=5)
+    
+    def open_course(self, course):
+        """Open the course content/modules"""
+        # TODO: Implement course content viewer
+        messagebox.showinfo(
+            "Open Course",
+            f"Opening course: {course.get('title')}\\n\\n(Course content viewer coming soon!)"
+        )
+    
+    def view_progress(self, course):
+        """View student's progress in the course"""
+        # TODO: Implement progress tracking
+        messagebox.showinfo(
+            "Course Progress",
+            f"Progress for: {course.get('title')}\\n\\n(Progress tracking coming soon!)"
+        )
+    
+    def go_back(self):
+        """Go back to dashboard"""
+        self.page_manager.show_page("dashboard")

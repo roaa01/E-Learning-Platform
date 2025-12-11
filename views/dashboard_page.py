@@ -90,7 +90,8 @@ class DashboardPage(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(parent)
         btn_frame.pack(pady=10)
         
-        ctk.CTkButton(btn_frame, text="View Courses", command=self.show_all_courses).pack(pady=5)
+        ctk.CTkButton(btn_frame, text="Browse Courses", command=self.show_all_courses).pack(pady=5)
+        ctk.CTkButton(btn_frame, text="My Enrolled Courses", command=lambda: self.page_manager.show_page("my_courses")).pack(pady=5)
         ctk.CTkButton(btn_frame, text="My Progress").pack(pady=5)
         ctk.CTkButton(btn_frame, text="Assignments").pack(pady=5)
         
