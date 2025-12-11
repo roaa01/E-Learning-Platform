@@ -104,13 +104,11 @@ class CoursesPage(ctk.CTkFrame):
         actions = ctk.CTkFrame(card, fg_color="transparent")
         actions.pack(fill="x", padx=12, pady=(3, 8))
 
-        # View button
-        view_btn = ctk.CTkButton(actions, text="View", command=lambda: self.view_course_details(course.get("id")), width=80, height=28)
-        view_btn.pack(side="right", padx=5)
-        
+        # Enroll button for students
         user = self.page_manager.get_user()
-        enroll_btn = ctk.CTkButton(actions, text="Enroll", command=lambda: self.handle_enroll(user, course.get("id"), actions), width=80, height=28)
-        enroll_btn.pack(side="right", padx=20)
+        if user and getattr(user, 'role', None) == 'student':
+            enroll_btn = ctk.CTkButton(actions, text="Request Enrollment", command=lambda: self.handle_enroll(user, course.get("id"), actions), width=150, height=28)
+            enroll_btn.pack(side="right", padx=5)
 
         # Show edit/delete only for admin or course instructor
         user = self.page_manager.get_user()

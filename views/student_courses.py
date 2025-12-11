@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from tkinter import messagebox
 from database.EnrollmentService import EnrollmentService
+from database.course_service import CourseService
 from database.seed import get_database
 
 class MyCoursesPage(ctk.CTkFrame):
@@ -15,6 +16,7 @@ class MyCoursesPage(ctk.CTkFrame):
             db.get_collection("enrollments"),
             db.get_collection("courses")
         )
+        self.course_service = CourseService()
         
     def on_show(self):
         """Refresh content when page is shown"""
@@ -145,7 +147,7 @@ class MyCoursesPage(ctk.CTkFrame):
         view_btn = ctk.CTkButton(
             btn_frame,
             text="Open Course",
-            command=lambda: self.open_course(course),
+            command=lambda: self.open_course(course.get("course_id")),
             width=120,
             height=30,
             fg_color="blue",
@@ -163,13 +165,52 @@ class MyCoursesPage(ctk.CTkFrame):
         )
         progress_btn.pack(side="left", padx=5)
     
-    def open_course(self, course):
-        """Open the course content/modules"""
-        # TODO: Implement course content viewer
-        messagebox.showinfo(
-            "Open Course",
-            f"Opening course: {course.get('title')}\\n\\n(Course content viewer coming soon!)"
-        )
+    def open_course(self, course_id):
+        """Open the course content/modules in a dialog"""
+        course = self.course_service.get_course(course_id)
+        if not course:
+            messagebox.showerror("Error", "Course not found")
+            return
+            
+        dlg = ctk.CTkToplevel(self)
+        dlg.title(course.get("title", "Course Details"))
+        dlg.geometry("700x600")
+
+        header = ctk.CTkFrame(dlg)
+        header.pack(fill="x", padx=12, pady=12)
+        ctk.CTkLabel(header, text=course.get("title", ""), font=("Arial", 18, "bold")).pack(anchor="w")
+        ctk.CTkLabel(header, text=f"Category: {course.get('category','N/A')}", text_color="gray").pack(anchor="w")
+
+        body = ctk.CTkScrollableFrame(dlg)
+        body.pack(fill="both", expand=True, padx=12, pady=(0,12))
+
+        # Description
+        ctk.CTkLabel(body, text="Description:", font=("Arial", 12, "bold")).pack(anchor="w", pady=(6,2))
+        ctk.CTkLabel(body, text=course.get("description", ""), wraplength=640, text_color="gray").pack(anchor="w", pady=(0,8))
+
+        # Modules and lessons
+        modules = course.get("modules", [])
+        if not modules:
+            ctk.CTkLabel(body, text="No modules yet", text_color="gray").pack(pady=10)
+        else:
+            for m in modules:
+                m_frame = ctk.CTkFrame(body, fg_color="gray20")
+                m_frame.pack(fill="x", pady=6)
+                ctk.CTkLabel(m_frame, text=m.get("title","Module"), font=("Arial", 12, "bold")).pack(anchor="w", padx=8, pady=(6,2))
+                for l in m.get("lessons", []):
+                    lesson_text = f"- {l.get('title','Lesson')} ({l.get('type','')})"
+                    ctk.CTkLabel(m_frame, text=lesson_text, wraplength=620).pack(anchor="w", padx=18)
+                    # show resources (if any)
+                    resources = l.get("resources", [])
+                    if resources:
+                        for r in resources:
+                            rtxt = f"   • [{r.get('type','')}] {r.get('name','')} - {r.get('url','') or ''}"
+                            ctk.CTkLabel(m_frame, text=rtxt, text_color="gray", wraplength=620).pack(anchor="w", padx=28, pady=(0,2))
+
+        # Footer
+        footer = ctk.CTkFrame(dlg)
+        footer.pack(fill="x", padx=12, pady=8)
+        ctk.CTkButton(footer, text="Close", command=dlg.destroy).pack(side="right", padx=6)
     
     def view_progress(self, course):
         """View student's progress in the course"""
