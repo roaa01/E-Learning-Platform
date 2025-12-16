@@ -42,7 +42,8 @@ class EnrollmentService:
         
         try:
             s_oid = ObjectId(query["student_id"])
-        except:
+        except (TypeError, ValueError) as e:
+            print(f"Invalid student ID: {e}")
             return []
 
         pipeline = [
@@ -105,3 +106,41 @@ class EnrollmentService:
             print(f"Error rejecting enrollment: {e}")
             return False
     
+    def get_enrollment_by_id(self, enrollment_id: str):
+        """Get enrollment by ID"""
+        try:
+            return self.enrollments.find_one({"_id": ObjectId(enrollment_id)})
+        except Exception as e:
+            print(f"Error getting enrollment: {e}")
+            return None
+    
+    def delete_enrollment(self, enrollment_id: str) -> bool:
+        """Delete an enrollment"""
+        try:
+            result = self.enrollments.delete_one({"_id": ObjectId(enrollment_id)})
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"Error deleting enrollment: {e}")
+            return False
+    
+    def update_enrollment_status(self, enrollment_id: str, status: str) -> bool:
+        """Update enrollment status (generic method)"""
+        if status not in ["pending", "approved", "rejected"]:
+            print(f"Invalid status: {status}")
+            return False
+        
+        try:
+            update_data = {"status": status}
+            if status == "approved":
+                update_data["approved_at"] = datetime.now()
+            elif status == "rejected":
+                update_data["rejected_at"] = datetime.now()
+            
+            result = self.enrollments.update_one(
+                {"_id": ObjectId(enrollment_id)},
+                {"$set": update_data}
+            )
+            return result.modified_count == 1
+        except Exception as e:
+            print(f"Error updating enrollment status: {e}")
+            return False

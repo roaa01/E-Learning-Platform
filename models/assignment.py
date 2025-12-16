@@ -6,45 +6,59 @@ from bson import ObjectId
 @dataclass
 class Assignments:
     id: Optional[str] = None
-    courseId: str = ""
+    course_id: str = ""
     title: str = ""
     description: str = ""
-    dueDate: Optional[datetime] = None
-    submissionType: str = "text"
-    maxGrade: float = 100.0
+    due_date: Optional[datetime] = None
+    submission_type: str = "text"
+    max_grade: float = 100.0
     created_at: datetime = field(default_factory=datetime.utcnow)
 
     def to_dict(self):
+        """Convert to dictionary for MongoDB (using camelCase for DB consistency)"""
         return {
-            "courseId": self.courseId,
+            "courseId": self.course_id,
             "title": self.title,
             "description": self.description,
-            "dueDate": self.dueDate,
-            "submissionType": self.submissionType,
-            "maxGrade": self.maxGrade,
+            "dueDate": self.due_date,
+            "submissionType": self.submission_type,
+            "maxGrade": self.max_grade,
             "created_at": self.created_at
         }
+    
+    def is_late(self, submission_date: datetime) -> bool:
+        """Check if a submission date is past the due date"""
+        if not self.due_date:
+            return False
+        return submission_date > self.due_date
 
 @dataclass
 class Submission:
     id: Optional[str] = None
-    assignmentId: str = ""
-    studentId: str = ""
+    assignment_id: str = ""
+    student_id: str = ""
     content: str = ""
-    submittedDate: datetime = field(default_factory=datetime.utcnow)
+    submitted_date: datetime = field(default_factory=datetime.utcnow)
     grade: Optional[float] = None
     feedback: Optional[str] = None
-    contentType: str = "text"
+    content_type: str = "text"
     status: str = "submitted" # Helper field
 
     def to_dict(self):
+        """Convert to dictionary for MongoDB"""
         return {
-            "assignmentId": ObjectId(self.assignmentId),
-            "studentId": ObjectId(self.studentId),
+            "assignmentId": ObjectId(self.assignment_id),
+            "studentId": ObjectId(self.student_id),
             "content": self.content,
-            "submittedDate": self.submittedDate,
+            "submittedDate": self.submitted_date,
             "grade": self.grade,
             "feedback": self.feedback,
-            "contentType": self.contentType,
+            "contentType": self.content_type,
             "status": self.status
         }
+    
+    def is_graded(self) -> bool:
+        """Check if submission is graded"""
+        return self.grade is not None
+
+   

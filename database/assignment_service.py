@@ -13,12 +13,12 @@ class AssignmentService:
     def create_assignment(self, courseId: str, title: str, description: str, dueDate: datetime, submissionType: str, maxGrade: float = 100.0) -> str:
         """Create a new assignment and return its ID"""
         assignment = Assignments(
-            courseId=courseId,
+            course_id=courseId,
             title=title,
             description=description,
-            dueDate=dueDate,
-            submissionType=submissionType,
-            maxGrade=maxGrade
+            due_date=dueDate,
+            submission_type=submissionType,
+            max_grade=maxGrade
         )
         
         doc = assignment.to_dict()
@@ -28,7 +28,8 @@ class AssignmentService:
     def get_assignment(self, assignmentId: str) -> Optional[Dict[str, Any]]:
         try:
             return self.assignments.find_one({"_id": ObjectId(assignmentId)})
-        except:
+        except Exception as e:
+            print(f"Error getting assignment: {e}")
             return None
 
     def submit_assignment(self, assignmentId: str, studentId: str, content: str, contentType: str = "text") -> bool:
@@ -85,11 +86,11 @@ class AssignmentService:
         # (We only need dates and maxGrade for the strategy)
         from models.assignment import Assignments, Submission
         assignment = Assignments(
-            dueDate=assignment_doc.get("dueDate"), 
-            maxGrade=assignment_doc.get("maxGrade", 100.0)
+            due_date=assignment_doc.get("dueDate"), 
+            max_grade=assignment_doc.get("maxGrade", 100.0)
         )
         submission = Submission(
-            submittedDate=submission_doc.get("submittedDate")
+            submitted_date=submission_doc.get("submittedDate")
         )
 
         # 2. Build Decorator Chain
@@ -118,8 +119,23 @@ class AssignmentService:
                 "assignmentId": ObjectId(assignmentId),
                 "studentId": ObjectId(studentId)
             })
-        except:
+        except Exception as e:
+            print(f"Error getting submission: {e}")
             return None
+    
+    def delete_assignment(self, assignmentId: str) -> bool:
+        """Delete an assignment and all its submissions"""
+        try:
+            # Delete the assignment
+            result = self.assignments.delete_one({"_id": ObjectId(assignmentId)})
+            
+            # Delete all submissions for this assignment
+            self.submissions.delete_many({"assignmentId": ObjectId(assignmentId)})
+            
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"Error deleting assignment: {e}")
+            return False
     
     def get_all_submissions(self, assignmentId: str) -> List[Dict[str, Any]]:
         """Get all submissions for an assignment (for instructor)"""

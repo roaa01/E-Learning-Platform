@@ -85,7 +85,7 @@ def ensure_collections_and_indexes():
     enrollments.create_index([("student_id", 1), ("course_id", 1)], unique=True)
     
     assignments = db.get_collection("assignments")
-    assignments.create_index("courseId")
+    assignments.create_index("courseId")  # Note: Using camelCase to match Assignment model
     
     # migrate any existing plaintext passwords to hashed field, then seed
     migrate_plain_passwords()
@@ -105,7 +105,11 @@ def seed_initial_data():
             "role": "admin",
             "created_at": datetime.utcnow(),
         }
-        users.insert_one(admin)
+        try:
+            users.insert_one(admin)
+            print("✓ Admin user created")
+        except Exception as e:
+            print(f"Error creating admin: {e}")
     else:
         print("Admin user already exists")
 
@@ -119,7 +123,11 @@ def seed_initial_data():
             "courses_teaching": [],
             "created_at": datetime.utcnow(),
         }
-        users.insert_one(instructor)
+        try:
+            users.insert_one(instructor)
+            print("✓ Instructor user created")
+        except Exception as e:
+            print(f"Error creating instructor: {e}")
     else:
         print("Instructor user already exists")
 
@@ -133,7 +141,11 @@ def seed_initial_data():
             "enrolled_courses": [],
             "created_at": datetime.utcnow(),
         }
-        users.insert_one(student1)
+        try:
+            users.insert_one(student1)
+            print("✓ Student1 user created")
+        except Exception as e:
+            print(f"Error creating student1: {e}")
     else:
         print("Student1 user already exists")
 
@@ -147,7 +159,11 @@ def seed_initial_data():
             "enrolled_courses": [],
             "created_at": datetime.utcnow(),
         }
-        users.insert_one(student2)
+        try:
+            users.insert_one(student2)
+            print("✓ Student2 user created")
+        except Exception as e:
+            print(f"Error creating student2: {e}")
     else:
         print("Student2 user already exists")
 
@@ -171,6 +187,31 @@ def migrate_plain_passwords():
             print(f"Migrated password for user {d.get('email') or d.get('_id')}")
         except Exception as e:
             print(f"Failed to migrate user {d.get('email') or d.get('_id')}: {e}")
+
+
+def clear_database():
+    """Clear all collections (for testing)"""
+    db = get_database()
+    if db is None:
+        print("Error: Could not connect to database")
+        return
+    
+    collections = ["users", "courses", "enrollments", "assignments", "submissions", "categories"]
+    for coll_name in collections:
+        try:
+            count = db.get_collection(coll_name).delete_many({}).deleted_count
+            print(f"✓ Cleared {count} documents from {coll_name}")
+        except Exception as e:
+            print(f"Error clearing {coll_name}: {e}")
+    print("✓ Database cleared")
+
+
+def reset_database():
+    """Clear and reseed database (for testing)"""
+    print("Resetting database...")
+    clear_database()
+    ensure_collections_and_indexes()
+    print("✓ Database reset complete")
 
 
 if __name__ == "__main__":

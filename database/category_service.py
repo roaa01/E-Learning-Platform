@@ -66,11 +66,11 @@ class CategoryService:
                 id=doc.get("id"),
                 title=doc.get("title", ""),
                 description=doc.get("description", ""),
-                instructorId=doc.get("instructorId"),
+                instructor_id=doc.get("instructorId"),
                 # category=doc.get("category", ""), # Removed from model 
-                categoryId=doc.get("categoryId", 0), # Added to model
+                category_id=doc.get("categoryId", 0), # Added to model
                 status=doc.get("status", "draft"),
-                createdDate=doc.get("createdDate"),
+                created_date=doc.get("createdDate"),
                 # We can load modules if needed, or keep empty list if shallow load desired. 
                 # Request implies "list of courses", usually summaries, but let's load what we can easily.
                 # Transforming modules might be complex if not serializing properly, keeping simple for now.
@@ -79,8 +79,17 @@ class CategoryService:
             course_objects.append(c)
             
         return Category(
-            categoryId=cat_data["categoryId"],
+            category_id=cat_data["categoryId"],
             name=cat_data["name"],
             description=cat_data["description"],
             courses=course_objects
         )
+    
+    def delete_category(self, category_id: int) -> bool:
+        """Delete a category"""
+        try:
+            result = self.categories.delete_one({"categoryId": category_id})
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"Error deleting category: {e}")
+            return False

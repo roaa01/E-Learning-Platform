@@ -22,10 +22,13 @@ class CourseService:
             if existing_cat:
                 cat_id = existing_cat["categoryId"]
             else:
-                # Generate new ID (simple random for now, or finding max + 1)
-                # In production, use a counter or ObjectId. Here, using hash for simplicity/uniqueness in small scale or just random
-                import random
-                cat_id = random.randint(1000, 99999) 
+                # Generate new ID using auto-increment (find max + 1)
+                all_cats = cat_service.get_all_categories()
+                if all_cats:
+                    max_id = max(cat.get("categoryId", 0) for cat in all_cats)
+                    cat_id = max_id + 1
+                else:
+                    cat_id = 1
                 success = cat_service.create_category(cat_id, category_name, "")
                 if not success:
                     # Fallback or error handling
@@ -210,6 +213,51 @@ class CourseService:
                 res = self.courses.update_one(
                     {"_id": ObjectId(course_id), "modules.id": module_id},
                     {"$pull": {"modules.$.lessons": {"id": lesson_id}}}
+                )
+            except Exception:
+                return False
+        return res.modified_count > 0
+    
+    def update_module(self, course_id: str, module_id: str, title: str) -> bool:
+        """Update a module's title"""
+        # Try by string id first
+        res = self.courses.update_one(
+            {"id": course_id, "modules.id": module_id},
+            {"$set": {"modules.$.title": title}}
+        )
+        if res.matched_count == 0:
+            try:
+                res = self.courses.update_one(
+                    {"_id": ObjectId(course_id), "modules.id": module_id},
+                    {"$set": {"modules.$.title": title}}
+                )
+            except Exception:
+                return False
+        return res.modified_count > 0
+    
+    def update_lesson(self, course_id: str, module_id: str, lesson_id: str, updates: Dict[str, Any]) -> bool:
+        """Update a lesson's properties (title, content, type)"""
+        # Build update fields with proper array filter syntax
+        set_fields = {}
+        for key, value in updates.items():
+            if key in ["title", "content", "type"]:
+                set_fields[f"modules.$[m].lessons.$[l].{key}"] = value
+        
+        if not set_fields:
+            return False
+        
+        # Try by string id first
+        res = self.courses.update_one(
+            {"id": course_id},
+            {"$set": set_fields},
+            array_filters=[{"m.id": module_id}, {"l.id": lesson_id}]
+        )
+        if res.matched_count == 0:
+            try:
+                res = self.courses.update_one(
+                    {"_id": ObjectId(course_id)},
+                    {"$set": set_fields},
+                    array_filters=[{"m.id": module_id}, {"l.id": lesson_id}]
                 )
             except Exception:
                 return False

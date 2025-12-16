@@ -4,7 +4,7 @@ from typing import Optional
 @dataclass
 class SearchCriteria:
     query: Optional[str] = None
-    category: Optional[str] = None # category name or ID? usually name for search criteria or ID if specifically filtering
+    category: Optional[str] = None # category name or ID
     filter_type: Optional[str] = None # e.g. "by_title", "by_category"
     
     # New filters
@@ -14,7 +14,7 @@ class SearchCriteria:
     instructor_id: Optional[str] = None
     
     # Sorting / Strategy
-    sort_by: Optional[str] = None # e.g. "recommended", "price_asc", "price_desc"
+    sort_by: Optional[str] = "recommended"
     
     # Pagination
     page: int = 1

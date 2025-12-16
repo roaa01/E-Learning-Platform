@@ -4,24 +4,24 @@ from bson import ObjectId
 
 class Enrollment:
     def __init__(self, 
-                 studentId: Union[int, str], 
-                 courseId: Union[int, str], 
-                 enrolledDate: Optional[datetime] = None,
+                 student_id: Union[int, str], 
+                 course_id: Union[int, str], 
+                 enrolled_date: Optional[datetime] = None,
                  status: str = "pending",
                  id: Optional[Union[int, str]] = None):
         
         self.id = id
-        self.studentId = studentId
-        self.courseId = courseId
-        self.enrolledDate = enrolledDate or datetime.now()
-        self.status = status  # pending, active, completed
+        self.student_id = student_id
+        self.course_id = course_id
+        self.enrolled_date = enrolled_date or datetime.now()
+        self.status = status  # pending, approved, rejected
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for MongoDB storage"""
         return {
-            "studentId": self.studentId,
-            "courseId": self.courseId,
-            "enrolledDate": self.enrolledDate,
+            "student_id": self.student_id,
+            "course_id": self.course_id,
+            "enrolled_date": self.enrolled_date,
             "status": self.status
         }
 
@@ -30,11 +30,23 @@ class Enrollment:
         """Create Enrollment object from dictionary"""
         return cls(
             id=str(data.get("_id")) if data.get("_id") else data.get("id"),
-            studentId=data.get("studentId") or data.get("student_id"), # Support both for compatibility
-            courseId=data.get("courseId") or data.get("course_id"),
-            enrolledDate=data.get("enrolledDate") or data.get("requested_at"),
+            student_id=data.get("student_id") or data.get("studentId"),  # Support both for compatibility
+            course_id=data.get("course_id") or data.get("courseId"),
+            enrolled_date=data.get("enrolled_date") or data.get("enrolledDate") or data.get("requested_at"),
             status=data.get("status", "pending")
         )
+    
+    def is_pending(self) -> bool:
+        """Check if enrollment is pending approval"""
+        return self.status == "pending"
+    
+    def is_approved(self) -> bool:
+        """Check if enrollment is approved"""
+        return self.status == "approved"
+    
+    def is_rejected(self) -> bool:
+        """Check if enrollment is rejected"""
+        return self.status == "rejected"
 
-    def __repr__(self):
-        return f"<Enrollment(id={self.id}, studentId={self.studentId}, courseId={self.courseId}, status={self.status})>"
+ 
+

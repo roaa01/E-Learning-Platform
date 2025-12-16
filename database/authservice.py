@@ -66,8 +66,7 @@ class auth_servise:
             return None
 
         # Create correct User object using factory
-        # Some seeded documents may use 'name' instead of 'name', or may be missing name.
-        name_value = user_doc.get("name") or user_doc.get("name") or user_doc.get("email")
+        name_value = user_doc.get("name") or user_doc.get("email")
         return UserFactory.create_user(
             user_doc["role"],
             id=str(user_doc["_id"]),
@@ -94,13 +93,30 @@ class auth_servise:
             return False
 
     def get_user_by_id(self, user_id):
+        """Get user by ID and return User object"""
+        doc = None
+        
         try:
+            # Try ObjectId first
             doc = self.users.find_one({"_id": ObjectId(user_id)})
-        except Exception:
+        except (TypeError, ValueError):
+            # If not a valid ObjectId, try as string
             doc = self.users.find_one({"_id": user_id})
         
         if not doc:
             # Fallback for seeded string IDs
             doc = self.users.find_one({"id": user_id})
         
-        return doc
+        if not doc:
+            return None
+        
+        # Return User object for consistency
+        name_value = doc.get("name") or doc.get("email")
+        return UserFactory.create_user(
+            doc["role"],
+            id=str(doc["_id"]),
+            name=name_value,
+            email=doc.get("email"),
+            full_name=doc.get("full_name"),
+            password_hash=doc.get("password_hash")
+        )
