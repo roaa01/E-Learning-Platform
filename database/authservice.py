@@ -4,7 +4,7 @@ from pymongo.errors import DuplicateKeyError
 from bson import ObjectId
 from patterns.factory import UserFactory
 from models.user import User
-class auth_servise:
+class AuthService:
     def __init__(self, user_collection):
         self.users = user_collection
     def sign_up(self, role, name, email, password, full_name=None):

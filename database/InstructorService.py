@@ -10,7 +10,7 @@ class InstructorService:
         """Get all courses created by an instructor"""
         try:
             courses_cursor = self.courses.find({"instructorId": instructor.id}, {"title": 1})
-            return [{"id": str(c["_id"]), "title": c["title"]} for c in courses_cursor]
+            return [{"id": c.get("id") or str(c["_id"]), "title": c["title"]} for c in courses_cursor]
         except Exception as e:
             print(f"Error getting instructor courses: {e}")
             return []

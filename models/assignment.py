@@ -60,5 +60,3 @@ class Submission:
     def is_graded(self) -> bool:
         """Check if submission is graded"""
         return self.grade is not None
-
-   

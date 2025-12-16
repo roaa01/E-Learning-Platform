@@ -7,7 +7,7 @@ from models.SearchCriteria import SearchCriteria
 from patterns.search.filter_search_strategy import FilterSearchStrategy
 from patterns.search.recommendation_search_strategy import RecommendationSearchStrategy
 from database.category_service import CategoryService
-from database.authservice import auth_servise
+from database.authservice import AuthService
 
 class CoursesPage(ctk.CTkFrame):
     """Page to display all available courses"""
@@ -26,7 +26,7 @@ class CoursesPage(ctk.CTkFrame):
         self.category_service = CategoryService() # For populating dropdown
         # Initialize AuthService for instructor lookup
         db = get_database()
-        self.auth_service = auth_servise(db.get_collection("users"))
+        self.auth_service = AuthService(db.get_collection("users"))
         
         # Pagination & Recommendation State
         self.recommendation_strategy = RecommendationSearchStrategy()

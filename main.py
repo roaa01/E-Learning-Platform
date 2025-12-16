@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from database.authservice import auth_servise
+from database.authservice import AuthService
 from patterns.factory import UserFactory
 from database.seed import init_db, get_database, ensure_collections_and_indexes
 
@@ -22,7 +22,7 @@ ensure_collections_and_indexes()
 
 if db is not None:
     users_collection = db.get_collection("users")
-    service = auth_servise(users_collection)
+    service = AuthService(users_collection)
 else:
     print("Database connection failed. Authentication will not work.")
     exit(1)

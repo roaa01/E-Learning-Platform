@@ -47,6 +47,3 @@ class Enrollment:
     def is_rejected(self) -> bool:
         """Check if enrollment is rejected"""
         return self.status == "rejected"
-
- 
-

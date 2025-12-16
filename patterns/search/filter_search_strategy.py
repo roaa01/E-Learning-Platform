@@ -7,7 +7,7 @@ from database.category_service import CategoryService
 
 from patterns.search.category_search_strategy import CategorySearchStrategy
 
-from database.authservice import auth_servise
+from database.authservice import AuthService
 from database.seed import get_database
 
 class FilterSearchStrategy(SearchStrategy):
@@ -16,7 +16,7 @@ class FilterSearchStrategy(SearchStrategy):
         self.category_service = CategoryService()
         self.category_strategy = CategorySearchStrategy()
         db = get_database()
-        self.auth_service = auth_servise(db.get_collection("users"))
+        self.auth_service = AuthService(db.get_collection("users"))
         self.instructor_cache = {}
 
     def search(self, criteria: SearchCriteria) -> List[Course]:
@@ -55,7 +55,7 @@ class FilterSearchStrategy(SearchStrategy):
                         try:
                             u = self.auth_service.get_user_by_id(i_id)
                             if u:
-                                name_val = u.get("name") or u.get("full_name") or u.get("email") or ""
+                                name_val = u.name or u.full_name or u.email or ""
                                 i_name = name_val.lower()
                                 self.instructor_cache[i_id] = i_name
                         except:
@@ -93,12 +93,12 @@ class FilterSearchStrategy(SearchStrategy):
                 id=doc.get("id"),
                 title=doc.get("title"),
                 description=doc.get("description"),
-                instructorId=doc.get("instructorId"),
-                categoryId=doc.get("categoryId", 0),
+                instructor_id=doc.get("instructorId"),
+                category_id=doc.get("categoryId", 0),
                 level=doc.get("level", "Beginner"),
                 price=doc.get("price", 0.0),
                 status=doc.get("status"),
-                createdDate=doc.get("createdDate"),
+                created_date=doc.get("createdDate"),
                 modules=[]
             )
             filtered.append(c)
