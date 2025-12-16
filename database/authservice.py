@@ -92,3 +92,15 @@ class auth_servise:
             return True
         except DuplicateKeyError:
             return False
+
+    def get_user_by_id(self, user_id):
+        try:
+            doc = self.users.find_one({"_id": ObjectId(user_id)})
+        except Exception:
+            doc = self.users.find_one({"_id": user_id})
+        
+        if not doc:
+            # Fallback for seeded string IDs
+            doc = self.users.find_one({"id": user_id})
+        
+        return doc

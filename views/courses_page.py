@@ -6,6 +6,7 @@ from database.seed import get_database
 from models.SearchCriteria import SearchCriteria
 from patterns.search.filter_search_strategy import FilterSearchStrategy
 from database.category_service import CategoryService
+from database.authservice import auth_servise
 
 class CoursesPage(ctk.CTkFrame):
     """Page to display all available courses"""
@@ -22,6 +23,9 @@ class CoursesPage(ctk.CTkFrame):
         )
         self.search_strategy = FilterSearchStrategy()
         self.category_service = CategoryService() # For populating dropdown
+        # Initialize AuthService for instructor lookup
+        db = get_database()
+        self.auth_service = auth_servise(db.get_collection("users"))
         self.create_widgets()
         
     def create_widgets(self):
@@ -52,6 +56,9 @@ class CoursesPage(ctk.CTkFrame):
 
         # Category ComboBox
         categories = self.category_service.get_all_categories()
+        # Create a map for name lookup by ID
+        self.category_map = {c.get("categoryId"): c.get("name") for c in categories}
+        
         cat_names = [c.get("name", "Unknown") for c in categories]
         cat_names.insert(0, "All Categories")
         
@@ -75,15 +82,31 @@ class CoursesPage(ctk.CTkFrame):
         self.filter_id = None
         self.current_search_query = ""
 
-    def perform_search(self):
-        query = self.search_entry.get().strip()
-        self.current_search_query = query
-        # Trigger refresh
-        self.refresh_courses()
-
     def set_mode(self, mode="all", filter_id=None):
         self.filter_mode = mode
         self.filter_id = filter_id
+        self.refresh_courses()
+
+    def filter_by_instructor(self, instructor_id, instructor_name):
+        """Set filter to specific instructor and refresh"""
+        self.current_instructor_filter = instructor_id
+        self.current_instructor_name = instructor_name
+        self.refresh_courses()
+        
+    def perform_search(self):
+        query = self.search_entry.get().strip()
+        self.current_search_query = query
+        # Reset instructor filter on new manual search? 
+        # Usually yes, or keep it combined. Let's reset for clarity unless we want advanced composition.
+        # User request: "click ... show all the instructor courses". Implies filtering by THAT instructor.
+        # If I type "Python" and click search, I expect to search "Python" in ALL courses or current view?
+        # Let's keep filters composite BUT if I search manually, I might want to clear the specific instructor click?
+        # Let's keep it simple: Perform Search respects the current visual inputs (dropdown/text).
+        # The instructor filter is "hidden" state from the click. 
+        # I will CLEAR the clicked instructor filter when hitting Search to avoid confusion, 
+        # OR I should show a chip. 
+        # For simplicity: Search button RESETS the clicked instructor filter.
+        self.current_instructor_filter = None 
         self.refresh_courses()
 
     def send_enrollment_request(self, student, course_id):
@@ -118,14 +141,44 @@ class CoursesPage(ctk.CTkFrame):
         info_frame = ctk.CTkFrame(card, fg_color="transparent")
         info_frame.pack(pady=3, padx=12, fill="x")
         
+        # Resolve category name
+        cat_id = course.get("categoryId")
+        cat_name = self.category_map.get(cat_id)
+        if not cat_name:
+            cat_name = course.get("category", "N/A")
+
         category = ctk.CTkLabel(
             info_frame,
-            text=f"Category: {course.get('category', 'N/A')}",
+            text=f"Cat: {cat_name}",
             font=("Arial", 10),
             text_color="lightblue"
         )
         category.pack(side="left", padx=5)
         
+        # Instructor Name (Clickable)
+        instr_id = course.get("instructorId")
+        instr_name = "Unknown"
+        if instr_id:
+            try:
+                # Fetch user doc
+                u = self.auth_service.get_user_by_id(instr_id)
+                if u:
+                    instr_name = u.get("name") or u.get("full_name") or u.get("email") or "Instructor"
+            except:
+                pass
+        
+        instr_label = ctk.CTkLabel(
+            info_frame,
+            text=f"By: {instr_name}",
+            font=("Arial", 10, "underline"),
+            text_color="lightblue",
+            cursor="hand2"
+        )
+        instr_label.pack(side="left", padx=5)
+        # Bind click event
+        if instr_id:
+            instr_label.bind("<Button-1>", lambda e: self.filter_by_instructor(instr_id, instr_name))
+
         modules_count = len(course.get("modules", []))
         modules_label = ctk.CTkLabel(
             info_frame,
@@ -284,7 +337,6 @@ class CoursesPage(ctk.CTkFrame):
             courses = self.course_service.get_courses_by_instructor(self.filter_id)
             self.title_label.configure(text="My Courses")
         
-        # Check if there is a search query
         # Check if there is a search query OR any filter is active
         # We now use the strategy for ALL fetches to support standard filtering/sorting if we wanted
         # But to respect the "current_search_query" trigger:
@@ -298,13 +350,14 @@ class CoursesPage(ctk.CTkFrame):
             if val and val != "All Categories":
                 cat_filter = val
         
-            if val and val != "All Categories":
-                cat_filter = val
+        # Instructor filter from click
+        instr_filter = getattr(self, 'current_instructor_filter', None) 
         
-        if query or cat_filter:
+        if query or cat_filter or instr_filter:
             criteria = SearchCriteria(
                 query=query if query else None,
-                category=cat_filter if cat_filter else None
+                category=cat_filter if cat_filter else None,
+                instructor_id=instr_filter if instr_filter else None
             )
             # Strategy returns list of Course objects
             course_objects = self.search_strategy.search(criteria)
@@ -314,6 +367,9 @@ class CoursesPage(ctk.CTkFrame):
             title_parts = []
             if query: title_parts.append(f"Query: '{query}'")
             if cat_filter: title_parts.append(f"Category: '{cat_filter}'")
+            if instr_filter: 
+                name = getattr(self, 'current_instructor_name', instr_filter)
+                title_parts.append(f"Instructor: '{name}'")
             
             self.title_label.configure(text=f"Results: {', '.join(title_parts)}")
         else:

@@ -7,11 +7,17 @@ from database.category_service import CategoryService
 
 from patterns.search.category_search_strategy import CategorySearchStrategy
 
+from database.authservice import auth_servise
+from database.seed import get_database
+
 class FilterSearchStrategy(SearchStrategy):
     def __init__(self):
         self.course_service = CourseService()
         self.category_service = CategoryService()
         self.category_strategy = CategorySearchStrategy()
+        db = get_database()
+        self.auth_service = auth_servise(db.get_collection("users"))
+        self.instructor_cache = {}
 
     def search(self, criteria: SearchCriteria) -> List[Course]:
         # Refactoring: Delegate category search to CategorySearchStrategy if category is present
@@ -33,12 +39,30 @@ class FilterSearchStrategy(SearchStrategy):
         # We don't need to resolve category ID here anymore as the strategy handled it or we iterate result
         
         for doc in all_courses_dicts:
-            # 1. Full-text search (Title & Description)
+            # 1. Full-text search (Title & Description & *Instructor Name*)
             if criteria.query:
                 q = criteria.query.lower()
                 title = doc.get("title", "").lower()
                 desc = doc.get("description", "").lower()
-                if q not in title and q not in desc:
+                
+                # Resolve Instructor Name
+                i_id = doc.get("instructorId")
+                i_name = ""
+                if i_id:
+                    if i_id in self.instructor_cache:
+                        i_name = self.instructor_cache[i_id]
+                    else:
+                        try:
+                            u = self.auth_service.get_user_by_id(i_id)
+                            if u:
+                                name_val = u.get("name") or u.get("full_name") or u.get("email") or ""
+                                i_name = name_val.lower()
+                                self.instructor_cache[i_id] = i_name
+                        except:
+                            pass
+                
+                # Check match
+                if q not in title and q not in desc and q not in i_name:
                     continue
 
             # 2. Category match - Handled by initial fetch/strategy, but double check if needed?
