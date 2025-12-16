@@ -5,16 +5,14 @@ from database.seed import init_db, get_database, ensure_collections_and_indexes
 
 # Import the page manager and pages
 from views.page_manager import PageManager
-from views.auth_page import AuthPage
-from views.login import LoginPage
-from views.signup import SignupPage
-from views.dashboard_page import DashboardPage
+from views.auth_pages import AuthPage, LoginPage, SignupPage
+from views.student_dashboard import StudentDashboard, MyCoursesPage
+from views.instructor_dashboard import InstructorDashboard, EnrollmentRequestsPage
+from views.admin_dashboard import AdminDashboard
 from views.courses_page import CoursesPage
 from views.create_course_page import CreateCoursePage
 from views.manage_course_page import ManageCoursePage
 from views.manage_resources_page import ManageResourcesPage
-from views.enrollment_requests_page import EnrollmentRequestsPage
-from views.student_courses import MyCoursesPage
 
 # -----------------------------
 # Database Setup
@@ -44,11 +42,27 @@ app.geometry("500x600")
 # -----------------------------
 page_manager = PageManager(app)
 
+# Dashboard router - shows correct dashboard based on user role
+def get_dashboard_for_user(master, pm):
+    user = pm.get_user()
+    if not user:
+        return AuthPage(master, pm, service)
+    
+    role = getattr(user, 'role', 'student')
+    if role == 'student':
+        return StudentDashboard(master, pm)
+    elif role == 'instructor':
+        return InstructorDashboard(master, pm)
+    elif role == 'admin':
+        return AdminDashboard(master, pm)
+    else:
+        return StudentDashboard(master, pm)  # Default to student
+
 # Register ALL pages at startup
 page_manager.add_page("auth", lambda master, pm: AuthPage(master, pm, service))
 page_manager.add_page("login", lambda master, pm: LoginPage(master, pm, service))
 page_manager.add_page("signup", lambda master, pm: SignupPage(master, pm, service))
-page_manager.add_page("dashboard", DashboardPage)
+page_manager.add_page("dashboard", get_dashboard_for_user)
 page_manager.add_page("courses", CoursesPage)
 page_manager.add_page("create_course", CreateCoursePage)
 page_manager.add_page("manage_course", ManageCoursePage)

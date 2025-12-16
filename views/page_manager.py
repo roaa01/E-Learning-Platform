@@ -9,9 +9,9 @@ class PageManager:
         self.current_page = None
         self.current_user = None  # Store logged-in user
         
-    def add_page(self, name, page_class):
-        """Add a page to the manager (instantiate once and reuse)"""
-        self.pages[name] = page_class(self.master, self)
+    def add_page(self, name, page_class_or_factory):
+        """Add a page to the manager (store factory, don't instantiate yet)"""
+        self.pages[name] = page_class_or_factory
 
     def get_page(self, name):
         """Get or create a page instance"""
@@ -44,14 +44,19 @@ class PageManager:
         if name not in self.pages:
             raise ValueError(f"Page '{name}' not found")
         
-        self.current_page = self.pages[name]
-
-    
-        if hasattr(self.current_page, "on_show"):
-            self.current_page.on_show()
+        # For dashboard, always recreate to get correct role-based dashboard
+        if name == "dashboard" and name in self.page_instances:
+            del self.page_instances[name]
+        
+        # Get or create page instance
+        page = self.get_page(name)
+        
+        # Call on_show if it exists
+        if hasattr(page, "on_show"):
+            page.on_show()
         
         # Show new page
-        self.current_page = self.get_page(name)
+        self.current_page = page
         self.current_page.pack(fill="both", expand=True)
         
     def set_user(self, user):
