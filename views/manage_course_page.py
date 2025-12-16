@@ -1,7 +1,9 @@
 import customtkinter as ctk
 from database.course_service import CourseService
 from database.EnrollmentService import EnrollmentService
+from database.assignment_service import AssignmentService
 from database.seed import get_database
+from datetime import datetime
 
 class ManageCoursePage(ctk.CTkFrame):
     """Page for instructors to manage course modules and lessons"""
@@ -10,6 +12,7 @@ class ManageCoursePage(ctk.CTkFrame):
         super().__init__(master)
         self.page_manager = page_manager
         self.course_service = CourseService()
+        self.assignment_service = AssignmentService()
         
         db = get_database()
         self.enrollment_service = EnrollmentService(
@@ -273,6 +276,21 @@ class ManageCoursePage(ctk.CTkFrame):
             font=("Arial", 9)
         )
         resources_btn.pack(side="left", padx=5)
+
+        # If assignment, add "Submissions" button
+        if lesson.get("type") == "assignment" and lesson.get("content"):
+            assign_id = lesson.get("content")
+            sub_btn = ctk.CTkButton(
+                btn_frame,
+                text="Submissions",
+                command=lambda: self.show_submissions_dialog(assign_id, lesson.get("title")),
+                width=80,
+                height=25,
+                fg_color="orange",
+                hover_color="darkorange",
+                font=("Arial", 9)
+            )
+            sub_btn.pack(side="left", padx=5)
         
         delete_btn = ctk.CTkButton(
             btn_frame,
@@ -285,6 +303,107 @@ class ManageCoursePage(ctk.CTkFrame):
             font=("Arial", 9)
         )
         delete_btn.pack(side="left", padx=5)
+
+    # ... existing methods ...
+
+    def show_submissions_dialog(self, assignment_id, title):
+        """Show list of submissions for an assignment"""
+        dialog = ctk.CTkToplevel(self)
+        dialog.title(f"Submissions: {title}")
+        dialog.geometry("600x500")
+        
+        ctk.CTkLabel(dialog, text=f"Submissions for {title}", font=("Arial", 16, "bold")).pack(pady=10)
+        
+        scroll = ctk.CTkScrollableFrame(dialog)
+        scroll.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        submissions = self.assignment_service.get_all_submissions(assignment_id)
+        
+        if not submissions:
+            ctk.CTkLabel(scroll, text="No submissions yet", text_color="gray").pack(pady=20)
+        
+        for sub in submissions:
+            card = ctk.CTkFrame(scroll, fg_color="gray20")
+            card.pack(fill="x", pady=5)
+            
+            # Info
+            info = ctk.CTkFrame(card, fg_color="transparent")
+            info.pack(side="left", padx=10, pady=10)
+            
+            student_name = sub.get("student_name", "Unknown")
+            submitted_date = sub.get("submittedDate")
+            date_str = submitted_date.strftime("%Y-%m-%d %H:%M") if submitted_date else "N/A"
+            status = sub.get("status", "submitted")
+            grade = sub.get("grade")
+            
+            ctk.CTkLabel(info, text=student_name, font=("Arial", 12, "bold")).pack(anchor="w")
+            ctk.CTkLabel(info, text=f"Date: {date_str}", font=("Arial", 10)).pack(anchor="w")
+            
+            status_text = f"Grade: {grade}" if grade is not None else f"Status: {status}"
+            ctk.CTkLabel(info, text=status_text, text_color="lightgreen" if grade else "orange").pack(anchor="w")
+            
+            # Actions
+            actions = ctk.CTkFrame(card, fg_color="transparent")
+            actions.pack(side="right", padx=10)
+            
+            # View Content (simplified)
+            ctk.CTkLabel(actions, text=f"Type: {sub.get('contentType','text')}", font=("Arial",9)).pack(side="top")
+            
+            # Grade Button
+            ctk.CTkButton(
+                actions, 
+                text="Grade", 
+                width=60, 
+                height=25,
+                fg_color="blue",
+                command=lambda s=sub: self.grade_student_dialog(s, title, dialog)
+            ).pack(side="bottom", pady=2)
+
+    def grade_student_dialog(self, submission, title, parent):
+        """Dialog to enter grade and trigger decorator logic"""
+        d = ctk.CTkToplevel(parent)
+        d.title("Grade Submission")
+        d.geometry("350x300")
+        
+        ctk.CTkLabel(d, text=f"Grading: {submission.get('student_name')}", font=("Arial", 12, "bold")).pack(pady=10)
+        
+        # Display submitted date for context
+        sub_date = submission.get("submittedDate")
+        if sub_date:
+            ctk.CTkLabel(d, text=f"Submitted: {sub_date.strftime('%Y-%m-%d %H:%M')}", text_color="gray").pack()
+
+        ctk.CTkLabel(d, text="Raw Score (0-100):").pack(anchor="w", padx=20, pady=(10,0))
+        score_entry = ctk.CTkEntry(d)
+        score_entry.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(d, text="Feedback:").pack(anchor="w", padx=20)
+        feedback_entry = ctk.CTkEntry(d)
+        feedback_entry.pack(fill="x", padx=20, pady=5)
+        
+        def save():
+            try:
+                raw_score = float(score_entry.get())
+                feedback = feedback_entry.get().strip()
+                
+                aid = submission.get("assignmentId")
+                sid = submission.get("studentId")
+                
+                final_grade = self.assignment_service.grade_submission(aid, sid, raw_score, feedback)
+                
+                self.show_message(f"Graded: {final_grade} (Decorator applied if late)", "green")
+                d.destroy()
+                
+                # Refresh parent dialog to show new grade
+                parent.destroy()
+                self.show_submissions_dialog(aid, title)
+                
+            except ValueError:
+                ctk.CTkLabel(d, text="Invalid score", text_color="red").pack()
+            except Exception as e:
+                print(e)
+                ctk.CTkLabel(d, text=f"Error: {e}", text_color="red").pack()
+                
+        ctk.CTkButton(d, text="Save Grade", command=save, fg_color="green").pack(pady=20)
 
     def update_status_ui(self):
         """Update status button text and enabled state based on current course and user role"""
@@ -372,7 +491,7 @@ class ManageCoursePage(ctk.CTkFrame):
         
         dialog = ctk.CTkToplevel(self)
         dialog.title("Add Lesson")
-        dialog.geometry("400x400")
+        dialog.geometry("400x500")
         
         # Lesson title
         ctk.CTkLabel(dialog, text="Lesson Title:", font=("Arial", 11, "bold")).pack(pady=(15, 3), padx=20)
@@ -380,8 +499,8 @@ class ManageCoursePage(ctk.CTkFrame):
         title_entry.pack(pady=5, padx=20, fill="x")
         
         # Lesson content
-        ctk.CTkLabel(dialog, text="Content:", font=("Arial", 11, "bold")).pack(pady=(10, 3), padx=20)
-        content_entry = ctk.CTkTextbox(dialog, height=100)
+        ctk.CTkLabel(dialog, text="Content / Instructions:", font=("Arial", 11, "bold")).pack(pady=(10, 3), padx=20)
+        content_entry = ctk.CTkTextbox(dialog, height=80)
         content_entry.pack(pady=5, padx=20, fill="both", expand=True)
         
         # Lesson type
@@ -399,14 +518,70 @@ class ManageCoursePage(ctk.CTkFrame):
             content = content_entry.get("1.0", "end").strip()
             lesson_type = type_combo.get()
             
-            if not title or not content:
+            if not title:
                 return
             
-            self.add_lesson(title, content, lesson_type)
-            dialog.destroy()
+            if lesson_type == "assignment":
+                self.show_assignment_details_dialog(title, content, dialog)
+            else:
+                self.add_lesson(title, content, lesson_type)
+                dialog.destroy()
         
         btn = ctk.CTkButton(dialog, text="Add Lesson", command=add, fg_color="blue")
         btn.pack(pady=15, padx=20, fill="x")
+
+    def show_assignment_details_dialog(self, title, instructions, parent_dialog):
+        """Show secondary dialog for assignment details"""
+        # Close the parent dialog first
+        parent_dialog.destroy()
+
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Assignment Details")
+        dialog.geometry("400x350")
+        
+        ctk.CTkLabel(dialog, text=f"Assignment: {title}", font=("Arial", 14, "bold")).pack(pady=10)
+        
+        # Due Date
+        ctk.CTkLabel(dialog, text="Due Date (YYYY-MM-DD):").pack(anchor="w", padx=20, pady=(10, 2))
+        date_entry = ctk.CTkEntry(dialog, placeholder_text="2025-12-31")
+        date_entry.pack(fill="x", padx=20, pady=5)
+        
+        # Submission Type
+        ctk.CTkLabel(dialog, text="Submission Type:").pack(anchor="w", padx=20, pady=(10, 2))
+        sub_type_combo = ctk.CTkComboBox(dialog, values=["text", "file", "link"], state="readonly")
+        sub_type_combo.set("text")
+        sub_type_combo.pack(fill="x", padx=20, pady=5)
+        
+        def confirm():
+            due_str = date_entry.get().strip()
+            sub_type = sub_type_combo.get()
+            
+            try:
+                due_date = datetime.strptime(due_str, "%Y-%m-%d")
+            except ValueError:
+                ctk.CTkLabel(dialog, text="Invalid date format", text_color="red").pack()
+                return
+
+            try:
+                # Create the actual assignment record
+                assignment_id = self.assignment_service.create_assignment(
+                    courseId=self.course_id,
+                    title=title,
+                    description=instructions,
+                    dueDate=due_date,
+                    submissionType=sub_type,
+                    maxGrade=100.0
+                )
+                
+                # Create the lesson linked to this assignment
+                self.add_lesson(title, assignment_id, "assignment")
+                dialog.destroy()
+            except Exception as e:
+                print(f"Error creating assignment: {e}")
+                # Ideally show this on the dialog, but for now print helps debugging
+                ctk.CTkLabel(dialog, text=f"Error: {e}", text_color="red").pack(pady=5)
+            
+        ctk.CTkButton(dialog, text="Create Assignment", command=confirm, fg_color="green").pack(pady=20)
     
     def add_module(self, title):
         """Add a new module to the course"""

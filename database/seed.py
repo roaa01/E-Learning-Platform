@@ -85,7 +85,7 @@ def ensure_collections_and_indexes():
     enrollments.create_index([("student_id", 1), ("course_id", 1)], unique=True)
     
     assignments = db.get_collection("assignments")
-    assignments.create_index("course_id")
+    assignments.create_index("courseId")
     
     # migrate any existing plaintext passwords to hashed field, then seed
     migrate_plain_passwords()

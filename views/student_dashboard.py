@@ -7,6 +7,7 @@ from tkinter import messagebox
 from database.EnrollmentService import EnrollmentService
 from database.course_service import CourseService
 from database.seed import get_database
+from views.assignment_view import AssignmentView
 
 
 class StudentDashboard(ctk.CTkFrame):
@@ -312,14 +313,31 @@ class MyCoursesPage(ctk.CTkFrame):
                 m_frame.pack(fill="x", pady=6)
                 ctk.CTkLabel(m_frame, text=m.get("title","Module"), font=("Arial", 12, "bold")).pack(anchor="w", padx=8, pady=(6,2))
                 for l in m.get("lessons", []):
+                    lesson_frame = ctk.CTkFrame(m_frame, fg_color="transparent")
+                    lesson_frame.pack(fill="x", padx=18, pady=2)
+                    
                     lesson_text = f"- {l.get('title','Lesson')} ({l.get('type','')})"
-                    ctk.CTkLabel(m_frame, text=lesson_text, wraplength=620).pack(anchor="w", padx=18)
-                    # show resources (if any)
-                    resources = l.get("resources", [])
-                    if resources:
-                        for r in resources:
-                            rtxt = f"   • [{r.get('type','')}] {r.get('name','')} - {r.get('url','') or ''}"
-                            ctk.CTkLabel(m_frame, text=rtxt, text_color="gray", wraplength=620).pack(anchor="w", padx=28, pady=(0,2))
+                    ctk.CTkLabel(lesson_frame, text=lesson_text, wraplength=450).pack(side="left")
+                    
+                    if l.get("type") == "assignment":
+                        assign_id = l.get("content") # content holds the assignment_id
+                        if assign_id:
+                            # Small button to open assignment
+                            ctk.CTkButton(
+                                lesson_frame, 
+                                text="Open Assignment", 
+                                width=120, 
+                                height=24,
+                                fg_color="orange", 
+                                command=lambda aid=assign_id: AssignmentView(self, aid, str(self.page_manager.get_user().id))
+                            ).pack(side="right", padx=10)
+
+                        # show resources (if any)
+                        resources = l.get("resources", [])
+                        if resources:
+                            for r in resources:
+                                rtxt = f"   • [{r.get('type','')}] {r.get('name','')} - {r.get('url','') or ''}"
+                                ctk.CTkLabel(m_frame, text=rtxt, text_color="gray", wraplength=620).pack(anchor="w", padx=28, pady=(0,2))
 
         # Footer
         footer = ctk.CTkFrame(dlg)
