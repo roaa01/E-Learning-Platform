@@ -3,6 +3,9 @@ from database.course_service import CourseService
 from database.EnrollmentService import EnrollmentService
 from models.user import Student
 from database.seed import get_database
+from models.SearchCriteria import SearchCriteria
+from patterns.search.filter_search_strategy import FilterSearchStrategy
+from database.category_service import CategoryService
 
 class CoursesPage(ctk.CTkFrame):
     """Page to display all available courses"""
@@ -17,6 +20,8 @@ class CoursesPage(ctk.CTkFrame):
             db.get_collection("enrollments"),
             db.get_collection("courses")
         )
+        self.search_strategy = FilterSearchStrategy()
+        self.category_service = CategoryService() # For populating dropdown
         self.create_widgets()
         
     def create_widgets(self):
@@ -31,6 +36,29 @@ class CoursesPage(ctk.CTkFrame):
         )
         self.title_label.pack(side="left")
         
+        search_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+        search_frame.pack(side="left", padx=20, fill="x", expand=True)
+
+        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="Search courses...")
+        self.search_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.search_entry.bind("<Return>", lambda e: self.perform_search())
+
+        search_btn = ctk.CTkButton(search_frame, text="Search", command=self.perform_search, width=60)
+        search_btn.pack(side="left")
+
+        # More Filters (Expandable or just visible row)
+        filter_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+        filter_frame.pack(side="left", padx=10, fill="x")
+
+        # Category ComboBox
+        categories = self.category_service.get_all_categories()
+        cat_names = [c.get("name", "Unknown") for c in categories]
+        cat_names.insert(0, "All Categories")
+        
+        self.cat_combo = ctk.CTkComboBox(filter_frame, values=cat_names, width=150)
+        self.cat_combo.pack(side="left", padx=5)
+        self.cat_combo.set("All Categories")
+
         back_btn = ctk.CTkButton(
             header_frame,
             text="Back",
@@ -45,6 +73,13 @@ class CoursesPage(ctk.CTkFrame):
 
         self.filter_mode = "all"  # or "instructor"
         self.filter_id = None
+        self.current_search_query = ""
+
+    def perform_search(self):
+        query = self.search_entry.get().strip()
+        self.current_search_query = query
+        # Trigger refresh
+        self.refresh_courses()
 
     def set_mode(self, mode="all", filter_id=None):
         self.filter_mode = mode
@@ -248,6 +283,39 @@ class CoursesPage(ctk.CTkFrame):
         if self.filter_mode == "instructor" and self.filter_id:
             courses = self.course_service.get_courses_by_instructor(self.filter_id)
             self.title_label.configure(text="My Courses")
+        
+        # Check if there is a search query
+        # Check if there is a search query OR any filter is active
+        # We now use the strategy for ALL fetches to support standard filtering/sorting if we wanted
+        # But to respect the "current_search_query" trigger:
+        
+        query = getattr(self, "current_search_query", "")
+        
+        # Get category from dropdown
+        cat_filter = None
+        if hasattr(self, 'cat_combo'):
+            val = self.cat_combo.get()
+            if val and val != "All Categories":
+                cat_filter = val
+        
+            if val and val != "All Categories":
+                cat_filter = val
+        
+        if query or cat_filter:
+            criteria = SearchCriteria(
+                query=query if query else None,
+                category=cat_filter if cat_filter else None
+            )
+            # Strategy returns list of Course objects
+            course_objects = self.search_strategy.search(criteria)
+            # Convert to dicts for compatibility with current view logic
+            courses = [c.to_dict() for c in course_objects]
+            
+            title_parts = []
+            if query: title_parts.append(f"Query: '{query}'")
+            if cat_filter: title_parts.append(f"Category: '{cat_filter}'")
+            
+            self.title_label.configure(text=f"Results: {', '.join(title_parts)}")
         else:
             courses = self.course_service.get_published_courses()
             self.title_label.configure(text="Available Courses")

@@ -44,6 +44,9 @@ class Course:
     instructorId: Optional[str] = None
     categoryId: int = 0
     status: str = "draft"  # draft or published
+    # New fields
+    level: str = "Beginner" # Beginner, Intermediate, Advanced
+    price: float = 0.0
     createdDate: datetime = field(default_factory=datetime.utcnow)
     modules: List[Module] = field(default_factory=list)
 
@@ -54,6 +57,8 @@ class Course:
             "description": self.description,
             "instructorId": self.instructorId,
             "categoryId": self.categoryId,
+            "level": self.level,
+            "price": self.price,
             "createdDate": self.createdDate,
             "modules": [m.to_dict() for m in self.modules],
             "status": self.status,

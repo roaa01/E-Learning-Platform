@@ -10,7 +10,7 @@ class CourseService:
         self.db = get_database()
         self.courses = self.db.get_collection("courses")
 
-    def create_course(self, title: str, description: str, instructor_id: str, category_name: str = "", visibility: str = "draft") -> str:
+    def create_course(self, title: str, description: str, instructor_id: str, category_name: str = "", visibility: str = "draft", level: str = "Beginner", price: float = 0.0) -> str:
         # Use UML attribute names: id, instructorId, createdDate, status
         from database.category_service import CategoryService
         cat_service = CategoryService()
@@ -39,6 +39,8 @@ class CourseService:
             "instructorId": instructor_id,
             "categoryId": cat_id, # Link via ID
             "status": visibility,
+            "level": level,
+            "price": price,
             "createdDate": datetime.utcnow(),
             "modules": [],
         }
