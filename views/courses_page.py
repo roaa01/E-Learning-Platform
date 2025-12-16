@@ -5,6 +5,7 @@ from models.user import Student
 from database.seed import get_database
 from models.SearchCriteria import SearchCriteria
 from patterns.search.filter_search_strategy import FilterSearchStrategy
+from patterns.search.recommendation_search_strategy import RecommendationSearchStrategy
 from database.category_service import CategoryService
 from database.authservice import auth_servise
 
@@ -26,6 +27,13 @@ class CoursesPage(ctk.CTkFrame):
         # Initialize AuthService for instructor lookup
         db = get_database()
         self.auth_service = auth_servise(db.get_collection("users"))
+        
+        # Pagination & Recommendation State
+        self.recommendation_strategy = RecommendationSearchStrategy()
+        self.is_recommendation_mode = False
+        self.current_page = 1
+        self.page_size = 5
+        
         self.create_widgets()
         
     def create_widgets(self):
@@ -66,6 +74,17 @@ class CoursesPage(ctk.CTkFrame):
         self.cat_combo.pack(side="left", padx=5)
         self.cat_combo.set("All Categories")
 
+        # Recommendation Toggle Button
+        self.rec_btn = ctk.CTkButton(
+            filter_frame,
+            text="Show Recommended",
+            command=self.toggle_recommendation,
+            width=140,
+            fg_color="gray",  # Default inactive color
+            hover_color="gray40"
+        )
+        self.rec_btn.pack(side="left", padx=10)
+
         back_btn = ctk.CTkButton(
             header_frame,
             text="Back",
@@ -77,6 +96,19 @@ class CoursesPage(ctk.CTkFrame):
         # Scrollable courses container
         self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll_frame.pack(pady=10, padx=20, fill="both", expand=True)
+
+        # Pagination Controls
+        self.pagination_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.pagination_frame.pack(pady=10, fill="x")
+        
+        self.prev_btn = ctk.CTkButton(self.pagination_frame, text="Previous", width=80, command=self.prev_page)
+        self.prev_btn.pack(side="left", padx=20)
+        
+        self.page_label = ctk.CTkLabel(self.pagination_frame, text="Page 1", font=("Arial", 12, "bold"))
+        self.page_label.pack(side="left", expand=True)
+        
+        self.next_btn = ctk.CTkButton(self.pagination_frame, text="Next", width=80, command=self.next_page)
+        self.next_btn.pack(side="right", padx=20)
 
         self.filter_mode = "all"  # or "instructor"
         self.filter_id = None
@@ -91,8 +123,32 @@ class CoursesPage(ctk.CTkFrame):
         """Set filter to specific instructor and refresh"""
         self.current_instructor_filter = instructor_id
         self.current_instructor_name = instructor_name
+        self.is_recommendation_mode = False # Disable rec mode when filtering specific
+        self.current_page = 1
         self.refresh_courses()
         
+    def toggle_recommendation(self):
+        """Switch between standard search and recommendation mode"""
+        self.is_recommendation_mode = not self.is_recommendation_mode
+        self.current_page = 1 # Reset page
+        
+        # Update button visual state
+        if self.is_recommendation_mode:
+            self.rec_btn.configure(text="Show All Courses", fg_color="#1f538d") # Active color
+        else:
+            self.rec_btn.configure(text="Show Recommended", fg_color="gray")
+            
+        self.refresh_courses()
+
+    def prev_page(self):
+        if self.current_page > 1:
+            self.current_page -= 1
+            self.refresh_courses()
+
+    def next_page(self):
+        self.current_page += 1
+        self.refresh_courses()
+
     def perform_search(self):
         query = self.search_entry.get().strip()
         self.current_search_query = query
@@ -107,6 +163,8 @@ class CoursesPage(ctk.CTkFrame):
         # OR I should show a chip. 
         # For simplicity: Search button RESETS the clicked instructor filter.
         self.current_instructor_filter = None 
+        self.is_recommendation_mode = False # Search exits rec mode
+        self.current_page = 1
         self.refresh_courses()
 
     def send_enrollment_request(self, student, course_id):
@@ -333,37 +391,50 @@ class CoursesPage(ctk.CTkFrame):
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
 
+        courses = []
+        
+        # Prepare Criteria for cases that use it
+        criteria = SearchCriteria(
+            page=self.current_page,
+            page_size=self.page_size
+        )
+
         if self.filter_mode == "instructor" and self.filter_id:
+            # Instructor Dashboard View (My Courses)
             courses = self.course_service.get_courses_by_instructor(self.filter_id)
             self.title_label.configure(text="My Courses")
         
-        # Check if there is a search query OR any filter is active
-        # We now use the strategy for ALL fetches to support standard filtering/sorting if we wanted
-        # But to respect the "current_search_query" trigger:
+        elif self.is_recommendation_mode:
+            # Recommendations View
+            criteria.sort_by = "recommended"
+            courses_objects = self.recommendation_strategy.search(criteria)
+            courses = [c.to_dict() for c in courses_objects]
+            self.title_label.configure(text="Recommended for You")
         
-        query = getattr(self, "current_search_query", "")
-        
-        # Get category from dropdown
-        cat_filter = None
-        if hasattr(self, 'cat_combo'):
-            val = self.cat_combo.get()
-            if val and val != "All Categories":
-                cat_filter = val
-        
-        # Instructor filter from click
-        instr_filter = getattr(self, 'current_instructor_filter', None) 
-        
-        if query or cat_filter or instr_filter:
-            criteria = SearchCriteria(
-                query=query if query else None,
-                category=cat_filter if cat_filter else None,
-                instructor_id=instr_filter if instr_filter else None
-            )
-            # Strategy returns list of Course objects
+        else:
+            # Standard Browse View
+            query = getattr(self, "current_search_query", "")
+            
+            # Get category from dropdown
+            cat_filter = None
+            if hasattr(self, 'cat_combo'):
+                val = self.cat_combo.get()
+                if val and val != "All Categories":
+                    cat_filter = val
+            
+            # Instructor filter from click (Browse Mode)
+            instr_filter = getattr(self, 'current_instructor_filter', None) 
+            
+            # Update criteria
+            criteria.query = query if query else None
+            criteria.category = cat_filter if cat_filter else None
+            criteria.instructor_id = instr_filter if instr_filter else None
+            
+            # Execute Search
             course_objects = self.search_strategy.search(criteria)
-            # Convert to dicts for compatibility with current view logic
             courses = [c.to_dict() for c in course_objects]
             
+            # Update Title
             title_parts = []
             if query: title_parts.append(f"Query: '{query}'")
             if cat_filter: title_parts.append(f"Category: '{cat_filter}'")
@@ -371,10 +442,25 @@ class CoursesPage(ctk.CTkFrame):
                 name = getattr(self, 'current_instructor_name', instr_filter)
                 title_parts.append(f"Instructor: '{name}'")
             
-            self.title_label.configure(text=f"Results: {', '.join(title_parts)}")
+            if not title_parts:
+                self.title_label.configure(text="Available Courses")
+            else:
+                self.title_label.configure(text=f"Results: {', '.join(title_parts)}")
+
+        # Update Pagination UI
+        self.page_label.configure(text=f"Page {self.current_page}")
+        
+        # Disable Previous if on page 1
+        if self.current_page <= 1:
+            self.prev_btn.configure(state="disabled", fg_color="gray")
         else:
-            courses = self.course_service.get_published_courses()
-            self.title_label.configure(text="Available Courses")
+            self.prev_btn.configure(state="normal", fg_color=["#3B8ED0", "#1F6AA5"])
+            
+        # Disable Next if we got fewer results than page_size (end of list)
+        if len(courses) < self.page_size:
+            self.next_btn.configure(state="disabled", fg_color="gray")
+        else:
+            self.next_btn.configure(state="normal", fg_color=["#3B8ED0", "#1F6AA5"])
 
         if not courses:
             no_courses_label = ctk.CTkLabel(
