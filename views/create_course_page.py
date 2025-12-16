@@ -132,7 +132,7 @@ class CreateCoursePage(ctk.CTkFrame):
                 title=title,
                 description=description,
                 instructor_id=instructor_id,
-                category=category,
+                category_name=category,
                 visibility=status
             )
             

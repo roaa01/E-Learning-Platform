@@ -10,20 +10,44 @@ class CourseService:
         self.db = get_database()
         self.courses = self.db.get_collection("courses")
 
-    def create_course(self, title: str, description: str, instructor_id: str, category: str = "", visibility: str = "draft") -> str:
+    def create_course(self, title: str, description: str, instructor_id: str, category_name: str = "", visibility: str = "draft") -> str:
         # Use UML attribute names: id, instructorId, createdDate, status
+        from database.category_service import CategoryService
+        cat_service = CategoryService()
+        
+        # logic to find or create category
+        cat_id = 0
+        if category_name:
+            existing_cat = cat_service.get_category_by_name(category_name)
+            if existing_cat:
+                cat_id = existing_cat["categoryId"]
+            else:
+                # Generate new ID (simple random for now, or finding max + 1)
+                # In production, use a counter or ObjectId. Here, using hash for simplicity/uniqueness in small scale or just random
+                import random
+                cat_id = random.randint(1000, 99999) 
+                success = cat_service.create_category(cat_id, category_name, "")
+                if not success:
+                    # Fallback or error handling
+                    print("Failed to auto-create category")
+        
         new_id = str(ObjectId())
         course_doc = {
             "id": new_id,
             "title": title,
             "description": description,
             "instructorId": instructor_id,
-            "category": category,
+            "categoryId": cat_id, # Link via ID
             "status": visibility,
             "createdDate": datetime.utcnow(),
             "modules": [],
         }
         res = self.courses.insert_one(course_doc)
+        
+        # Link course to category
+        if cat_id != 0:
+            cat_service.add_course_to_category(cat_id, new_id)
+            
         return new_id
 
     def get_course(self, course_id: str) -> Optional[Dict[str, Any]]:

@@ -42,7 +42,7 @@ class Course:
     title: str = ""
     description: str = ""
     instructorId: Optional[str] = None
-    category: str = ""
+    categoryId: int = 0
     status: str = "draft"  # draft or published
     createdDate: datetime = field(default_factory=datetime.utcnow)
     modules: List[Module] = field(default_factory=list)
@@ -53,7 +53,7 @@ class Course:
             "title": self.title,
             "description": self.description,
             "instructorId": self.instructorId,
-            "category": self.category,
+            "categoryId": self.categoryId,
             "createdDate": self.createdDate,
             "modules": [m.to_dict() for m in self.modules],
             "status": self.status,
