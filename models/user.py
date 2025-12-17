@@ -57,7 +57,3 @@ class Admin(User):
     def __init__(self, **kwargs):
         kwargs['role'] = 'admin'
         super().__init__(**kwargs)
-    
-    # Note: Database operations should be handled by services
-    # Admin-specific operations should be in a dedicated AdminService
-    # For now, admin can use any service methods directly
