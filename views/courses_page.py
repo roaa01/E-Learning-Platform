@@ -95,6 +95,14 @@ class CoursesPage(ctk.CTkFrame):
         )
         back_btn.pack(side="right")
         
+        refresh_btn = ctk.CTkButton(
+            header_frame,
+            text="Refresh",
+            command=self.on_show,
+            width=80
+        )
+        refresh_btn.pack(side="right", padx=5)
+        
         # Scrollable courses container
         self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll_frame.pack(pady=10, padx=20, fill="both", expand=True)
@@ -173,6 +181,43 @@ class CoursesPage(ctk.CTkFrame):
         """Call EnrollmentService to send an enrollment request for a student and provide feedback."""
         success = self.enrollment_service.enroll_student(student, course_id)
         return success
+    
+    def get_enrollment_status(self, student_id, course_id):
+        """Check if student is enrolled/pending/rejected for a course"""
+        from bson import ObjectId
+        db = get_database()
+        enrollments = db.get_collection("enrollments")
+        
+        try:
+            enrollment = enrollments.find_one({
+                "student_id": ObjectId(student_id),
+                "course_id": course_id
+            })
+            if enrollment:
+                return enrollment.get("status", "pending")
+        except Exception as e:
+            print(f"Error checking enrollment status: {e}")
+        return None
+    
+    def handle_reapply(self, user, course_id, parent_widget):
+        """Delete rejected enrollment and create new pending request"""
+        from bson import ObjectId
+        db = get_database()
+        enrollments = db.get_collection("enrollments")
+        
+        try:
+            # Delete the rejected enrollment
+            enrollments.delete_one({
+                "student_id": ObjectId(user.id),
+                "course_id": course_id
+            })
+            # Create new enrollment request
+            success = self.enrollment_service.enroll_student(user, course_id)
+            if success:
+                # Refresh the page to show updated status
+                self.on_show()
+        except Exception as e:
+            print(f"Error re-applying: {e}")
 
     def create_course_card(self, parent, course):
         """Create a card widget for a single course"""
@@ -257,8 +302,23 @@ class CoursesPage(ctk.CTkFrame):
         # Enroll button for students
         user = self.page_manager.get_user()
         if user and getattr(user, 'role', None) == 'student':
-            enroll_btn = ctk.CTkButton(actions, text="Request Enrollment", command=lambda: self.handle_enroll(user, course.get("id"), actions), width=150, height=28)
-            enroll_btn.pack(side="right", padx=5)
+            # Check enrollment status
+            enrollment_status = self.get_enrollment_status(str(user.id), course.get("id"))
+            
+            if enrollment_status == "approved":
+                status_label = ctk.CTkLabel(actions, text="✓ Enrolled", text_color="lightgreen", font=("Arial", 12, "bold"))
+                status_label.pack(side="right", padx=5)
+            elif enrollment_status == "pending":
+                status_label = ctk.CTkLabel(actions, text="⏳ Pending Approval", text_color="orange", font=("Arial", 12))
+                status_label.pack(side="right", padx=5)
+            elif enrollment_status == "rejected":
+                status_label = ctk.CTkLabel(actions, text="✗ Rejected", text_color="red", font=("Arial", 12))
+                status_label.pack(side="right", padx=5)
+                reapply_btn = ctk.CTkButton(actions, text="Re-apply", command=lambda: self.handle_reapply(user, course.get("id"), actions), width=80, height=28, fg_color="orange")
+                reapply_btn.pack(side="right", padx=5)
+            else:
+                enroll_btn = ctk.CTkButton(actions, text="Request Enrollment", command=lambda: self.handle_enroll(user, course.get("id"), actions), width=150, height=28)
+                enroll_btn.pack(side="right", padx=5)
 
         # Show edit/delete only for admin or course instructor
         user = self.page_manager.get_user()
