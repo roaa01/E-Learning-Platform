@@ -595,6 +595,39 @@ class CoursesPage(ctk.CTkFrame):
 
     def on_show(self):
         """Called by PageManager when this page is shown; refresh the list."""
+        # Refresh category map and dropdown
+        categories = self.category_service.get_all_categories()
+        self.category_map = {c.get("categoryId"): c.get("name") for c in categories}
+        
+        cat_names = [c.get("name", "Unknown") for c in categories]
+        cat_names.insert(0, "All Categories")
+        
+        if hasattr(self, 'cat_combo'):
+            self.cat_combo.configure(values=cat_names)
+            self.cat_combo.set("All Categories")
+        
+        # Clear all filters and search state
+        self.search_entry.delete(0, "end")
+        self.current_search_query = ""
+        
+        if hasattr(self, 'level_filter'):
+            self.level_filter.set("All Levels")
+        
+        if hasattr(self, 'price_filter'):
+            self.price_filter.delete(0, "end")
+        
+        # Reset instructor filter
+        self.current_instructor_filter = None
+        self.current_instructor_name = None
+        
+        # Reset recommendation mode
+        self.is_recommendation_mode = False
+        if hasattr(self, 'rec_btn'):
+            self.rec_btn.configure(text="Show Recommended", fg_color="gray")
+        
+        # Reset pagination
+        self.current_page = 1
+        
         try:
             self.refresh_courses()
         except Exception:

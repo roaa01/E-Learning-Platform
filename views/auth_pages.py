@@ -108,6 +108,12 @@ class LoginPage(ctk.CTkFrame):
         self.msg_label = ctk.CTkLabel(self, text="", font=("Arial", 14))
         self.msg_label.pack(pady=10)
 
+    def on_show(self):
+        """Clear form fields when page is shown"""
+        self.email_entry.delete(0, "end")
+        self.password_entry.delete(0, "end")
+        self.msg_label.configure(text="")
+
     def handle_login(self):
         email_or_username = self.email_entry.get()
         password = self.password_entry.get()
@@ -201,6 +207,14 @@ class SignupPage(ctk.CTkFrame):
         # Message Label
         self.msg_label = ctk.CTkLabel(self, text="", font=("Arial", 14))
         self.msg_label.pack(pady=10)
+        
+    def on_show(self):
+        """Clear form fields when page is shown"""
+        self.role_option.set("Student")
+        self.name_entry.delete(0, "end")
+        self.email_entry.delete(0, "end")
+        self.password_entry.delete(0, "end")
+        self.msg_label.configure(text="")
         
     def handle_signup(self):
         # Normalize role

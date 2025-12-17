@@ -57,13 +57,24 @@ class CreateCoursePage(ctk.CTkFrame):
         # Category
         category_label = ctk.CTkLabel(form_frame, text="Category:", font=("Arial", 12, "bold"))
         category_label.pack(anchor="w", pady=(10, 5))
+        
+        # Load categories from database
+        from database.category_service import CategoryService
+        category_service = CategoryService()
+        categories = category_service.get_all_categories()
+        cat_names = [c.get("name", "Unknown") for c in categories]
+        
+        # Fallback to default categories if none exist
+        if not cat_names:
+            cat_names = ["Programming", "Web Development", "Data Science", "Design", "Business", "Other"]
+        
         self.category_combo = ctk.CTkComboBox(
             form_frame,
-            values=["Programming", "Web Development", "Data Science", "Design", "Business", "Other"],
+            values=cat_names,
             state="readonly"
         )
         self.category_combo.pack(fill="x", pady=5)
-        self.category_combo.set("Programming")
+        self.category_combo.set(cat_names[0] if cat_names else "Programming")
 
         # Level
         level_label = ctk.CTkLabel(form_frame, text="Level:", font=("Arial", 12, "bold"))
@@ -189,7 +200,10 @@ class CreateCoursePage(ctk.CTkFrame):
         """Clear all form fields"""
         self.title_entry.delete(0, "end")
         self.desc_entry.delete("1.0", "end")
-        self.category_combo.set("Programming")
+        # Reset to first category in the list
+        values = self.category_combo.cget("values")
+        if values:
+            self.category_combo.set(values[0])
         self.level_combo.set("Beginner")
         self.price_entry.delete(0, "end")
         self.status_combo.set("draft")
