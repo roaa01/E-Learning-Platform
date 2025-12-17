@@ -91,12 +91,8 @@ class StudentDashboard(ctk.CTkFrame):
         
         ctk.CTkButton(
             btn_frame, 
-            text="My Progress"
-        ).pack(pady=5)
-        
-        ctk.CTkButton(
-            btn_frame, 
-            text="Assignments"
+            text="Assignments",
+            command=self.show_my_assignments
         ).pack(pady=5)
 
         # Logout Button
@@ -113,10 +109,126 @@ class StudentDashboard(ctk.CTkFrame):
         courses_page = self.page_manager.get_page("courses")
         courses_page.set_mode("all")
         self.page_manager.show_page("courses")
+    
+    def show_my_assignments(self):
+        """Navigate to assignments page"""
+        self.page_manager.show_page("student_assignments")
         
     def handle_logout(self):
         self.page_manager.set_user(None)
         self.page_manager.show_page("auth")
+
+
+class StudentAssignmentsPage(ctk.CTkFrame):
+    """Page for students to view their assignments"""
+    
+    def __init__(self, master, page_manager):
+        super().__init__(master)
+        self.page_manager = page_manager
+        
+        db = get_database()
+        self.enrollment_service = EnrollmentService(
+            db.get_collection("enrollments"),
+            db.get_collection("courses")
+        )
+        self.course_service = CourseService()
+        
+        from database.assignment_service import AssignmentService
+        self.assignment_service = AssignmentService()
+    
+    def on_show(self):
+        """Refresh content when page is shown"""
+        for widget in self.winfo_children():
+            widget.destroy()
+        self.create_widgets()
+    
+    def create_widgets(self):
+        # Header
+        header_frame = ctk.CTkFrame(self)
+        header_frame.pack(pady=20, padx=30, fill="x")
+        
+        ctk.CTkLabel(header_frame, text="My Assignments", font=("Arial", 24, "bold")).pack(side="left")
+        
+        ctk.CTkButton(header_frame, text="Refresh", command=self.on_show, width=80).pack(side="right", padx=5)
+        ctk.CTkButton(header_frame, text="Back", command=self.go_back, width=80).pack(side="right")
+        
+        # Scrollable content
+        scroll = ctk.CTkScrollableFrame(self)
+        scroll.pack(fill="both", expand=True, padx=30, pady=(0, 20))
+        
+        user = self.page_manager.get_user()
+        enrolled_courses = self.enrollment_service.get_enrolled_courses(user)
+        
+        if not enrolled_courses:
+            ctk.CTkLabel(scroll, text="You are not enrolled in any courses yet.", text_color="gray").pack(pady=20)
+            return
+        
+        found_any = False
+        for course in enrolled_courses:
+            course_id = course.get("course_id")
+            course_title = course.get("title", "Unknown Course")
+            
+            full_course = self.course_service.get_course(course_id)
+            if not full_course:
+                continue
+            
+            for module in full_course.get("modules", []):
+                for lesson in module.get("lessons", []):
+                    if lesson.get("type") == "assignment":
+                        found_any = True
+                        assignment_id = lesson.get("content")
+                        assignment_doc = self.assignment_service.get_assignment(assignment_id) if assignment_id else None
+                        
+                        # Get submission status
+                        submission = self.assignment_service.get_submission(assignment_id, str(user.id)) if assignment_id else None
+                        
+                        card = ctk.CTkFrame(scroll, fg_color="gray20", border_width=1, border_color="orange")
+                        card.pack(fill="x", pady=8, padx=5)
+                        
+                        ctk.CTkLabel(card, text=f"📚 {course_title}", font=("Arial", 11), text_color="lightblue").pack(anchor="w", padx=10, pady=(8, 2))
+                        
+                        assign_title = lesson.get("title", "Assignment")
+                        if assignment_doc:
+                            assign_title = assignment_doc.get("title", assign_title)
+                        ctk.CTkLabel(card, text=assign_title, font=("Arial", 14, "bold")).pack(anchor="w", padx=10, pady=2)
+                        
+                        if assignment_doc and assignment_doc.get("dueDate"):
+                            due = assignment_doc.get("dueDate")
+                            due_str = due.strftime("%Y-%m-%d %H:%M") if hasattr(due, 'strftime') else str(due)
+                            ctk.CTkLabel(card, text=f"Due: {due_str}", font=("Arial", 11), text_color="gray").pack(anchor="w", padx=10, pady=2)
+                        
+                        # Show submission status
+                        if submission:
+                            status = submission.get("status", "submitted")
+                            grade = submission.get("grade")
+                            if grade is not None:
+                                status_text = f"✓ Graded: {grade}"
+                                status_color = "lightgreen"
+                            else:
+                                status_text = f"✓ Submitted"
+                                status_color = "lightblue"
+                            ctk.CTkLabel(card, text=status_text, font=("Arial", 11), text_color=status_color).pack(anchor="w", padx=10, pady=2)
+                        
+                        if assignment_id:
+                            ctk.CTkButton(
+                                card,
+                                text="Open Assignment",
+                                width=130,
+                                fg_color="orange",
+                                hover_color="darkorange",
+                                command=lambda aid=assignment_id: self.open_assignment(aid)
+                            ).pack(anchor="e", padx=10, pady=8)
+        
+        if not found_any:
+            ctk.CTkLabel(scroll, text="No assignments found in your enrolled courses.", text_color="gray").pack(pady=20)
+    
+    def open_assignment(self, assignment_id):
+        """Open assignment view"""
+        user = self.page_manager.get_user()
+        AssignmentView(self, assignment_id, str(user.id))
+    
+    def go_back(self):
+        self.page_manager.show_page("dashboard")
 
 
 class MyCoursesPage(ctk.CTkFrame):

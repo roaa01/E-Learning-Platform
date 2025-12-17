@@ -89,7 +89,8 @@ class InstructorDashboard(ctk.CTkFrame):
         
         ctk.CTkButton(
             btn_frame, 
-            text="Student Analytics"
+            text="View Submissions", 
+            command=self.show_submissions
         ).pack(pady=5)
         
         ctk.CTkButton(
@@ -136,6 +137,155 @@ class InstructorDashboard(ctk.CTkFrame):
     def handle_logout(self):
         self.page_manager.set_user(None)
         self.page_manager.show_page("auth")
+    
+    def show_submissions(self):
+        """Navigate to submissions page"""
+        self.page_manager.show_page("submissions")
+
+
+class SubmissionsPage(ctk.CTkFrame):
+    """Page for instructors to view and grade student submissions"""
+    
+    def __init__(self, master, page_manager):
+        super().__init__(master)
+        self.page_manager = page_manager
+        self.course_service = CourseService()
+        
+        from database.assignment_service import AssignmentService
+        self.assignment_service = AssignmentService()
+    
+    def on_show(self):
+        """Refresh content when page is shown"""
+        for widget in self.winfo_children():
+            widget.destroy()
+        self.create_widgets()
+    
+    def create_widgets(self):
+        # Header
+        header_frame = ctk.CTkFrame(self)
+        header_frame.pack(pady=20, padx=30, fill="x")
+        
+        ctk.CTkLabel(header_frame, text="Student Submissions", font=("Arial", 24, "bold")).pack(side="left")
+        
+        ctk.CTkButton(header_frame, text="Refresh", command=self.on_show, width=80).pack(side="right", padx=5)
+        ctk.CTkButton(header_frame, text="Back", command=self.go_back, width=80).pack(side="right")
+        
+        # Scrollable content
+        scroll = ctk.CTkScrollableFrame(self)
+        scroll.pack(fill="both", expand=True, padx=30, pady=(0, 20))
+        
+        user = self.page_manager.get_user()
+        courses = self.course_service.get_courses_by_instructor(str(user.id))
+        
+        if not courses:
+            ctk.CTkLabel(scroll, text="You don't have any courses yet.", text_color="gray").pack(pady=20)
+            return
+        
+        found_any = False
+        for course in courses:
+            course_id = course.get("id")
+            course_title = course.get("title", "Unknown Course")
+            
+            for module in course.get("modules", []):
+                for lesson in module.get("lessons", []):
+                    if lesson.get("type") == "assignment":
+                        assignment_id = lesson.get("content")
+                        if not assignment_id:
+                            continue
+                        
+                        assignment_doc = self.assignment_service.get_assignment(assignment_id)
+                        submissions = self.assignment_service.get_all_submissions(assignment_id)
+                        
+                        if submissions:
+                            found_any = True
+                            assign_frame = ctk.CTkFrame(scroll, fg_color="gray15")
+                            assign_frame.pack(fill="x", pady=10)
+                            
+                            assign_title = assignment_doc.get("title", lesson.get("title", "Assignment")) if assignment_doc else lesson.get("title", "Assignment")
+                            ctk.CTkLabel(assign_frame, text=f"📚 {course_title}", font=("Arial", 11), text_color="lightblue").pack(anchor="w", padx=10, pady=(8, 2))
+                            ctk.CTkLabel(assign_frame, text=assign_title, font=("Arial", 14, "bold")).pack(anchor="w", padx=10, pady=2)
+                            ctk.CTkLabel(assign_frame, text=f"{len(submissions)} submission(s)", text_color="orange", font=("Arial", 11)).pack(anchor="w", padx=10, pady=(0, 8))
+                            
+                            for sub in submissions:
+                                self.create_submission_card(assign_frame, sub, assignment_doc)
+        
+        if not found_any:
+            ctk.CTkLabel(scroll, text="No submissions found for your courses.", text_color="gray").pack(pady=20)
+    
+    def create_submission_card(self, parent, submission, assignment_doc):
+        """Create a card for a student submission"""
+        card = ctk.CTkFrame(parent, fg_color="gray20", border_width=1, border_color="gray30")
+        card.pack(fill="x", pady=5, padx=10)
+        
+        info_frame = ctk.CTkFrame(card, fg_color="transparent")
+        info_frame.pack(side="left", fill="x", expand=True, padx=10, pady=8)
+        
+        ctk.CTkLabel(info_frame, text=f"👤 {submission.get('student_name', 'Unknown')}", font=("Arial", 12, "bold")).pack(anchor="w")
+        ctk.CTkLabel(info_frame, text=submission.get('student_email', ''), font=("Arial", 10), text_color="gray").pack(anchor="w")
+        
+        status = submission.get("status", "submitted")
+        grade = submission.get("grade")
+        status_text = f"Grade: {grade}" if grade is not None else f"Status: {status}"
+        status_color = "lightgreen" if grade is not None else "orange"
+        ctk.CTkLabel(info_frame, text=status_text, font=("Arial", 11), text_color=status_color).pack(anchor="w")
+        
+        sub_date = submission.get("submittedDate")
+        if sub_date:
+            date_str = sub_date.strftime("%Y-%m-%d %H:%M") if hasattr(sub_date, 'strftime') else str(sub_date)
+            ctk.CTkLabel(info_frame, text=f"Submitted: {date_str}", font=("Arial", 10), text_color="gray").pack(anchor="w")
+        
+        btn_frame = ctk.CTkFrame(card, fg_color="transparent")
+        btn_frame.pack(side="right", padx=10, pady=8)
+        
+        def view_content():
+            from tkinter import messagebox
+            content_type = submission.get("contentType", "text")
+            content = submission.get("content", "")
+            messagebox.showinfo(f"Submission from {submission.get('student_name')}", f"Type: {content_type}\n\n{content}")
+        
+        ctk.CTkButton(btn_frame, text="View", width=70, command=view_content).pack(pady=2)
+        
+        def grade_submission():
+            from tkinter import messagebox
+            max_grade = assignment_doc.get("maxGrade", 100) if assignment_doc else 100
+            
+            grade_dlg = ctk.CTkToplevel(card)
+            grade_dlg.title("Grade Submission")
+            grade_dlg.geometry("300x200")
+            
+            ctk.CTkLabel(grade_dlg, text=f"Grade for {submission.get('student_name')}", font=("Arial", 12, "bold")).pack(pady=10)
+            ctk.CTkLabel(grade_dlg, text=f"Max Grade: {max_grade}").pack()
+            
+            grade_entry = ctk.CTkEntry(grade_dlg, placeholder_text="Enter grade...")
+            grade_entry.pack(pady=10)
+            if grade is not None:
+                grade_entry.insert(0, str(grade))
+            
+            feedback_entry = ctk.CTkEntry(grade_dlg, placeholder_text="Feedback (optional)")
+            feedback_entry.pack(pady=5)
+            
+            def save_grade():
+                try:
+                    raw_score = float(grade_entry.get())
+                    feedback = feedback_entry.get()
+                    final_grade = self.assignment_service.grade_submission(
+                        submission.get("assignmentId"),
+                        submission.get("studentId"),
+                        raw_score,
+                        feedback
+                    )
+                    messagebox.showinfo("Success", f"Grade saved: {final_grade}")
+                    grade_dlg.destroy()
+                    self.on_show()  # Refresh the page
+                except ValueError:
+                    messagebox.showerror("Error", "Please enter a valid number")
+            
+            ctk.CTkButton(grade_dlg, text="Save Grade", fg_color="green", command=save_grade).pack(pady=10)
+        
+        ctk.CTkButton(btn_frame, text="Grade", width=70, fg_color="orange", command=grade_submission).pack(pady=2)
+    
+    def go_back(self):
+        self.page_manager.show_page("dashboard")
 
 
 class EnrollmentRequestsPage(ctk.CTkFrame):

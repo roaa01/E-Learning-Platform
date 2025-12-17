@@ -6,8 +6,8 @@ from database.seed import init_db, get_database, ensure_collections_and_indexes
 # Import the page manager and pages
 from views.page_manager import PageManager
 from views.auth_pages import AuthPage, LoginPage, SignupPage
-from views.student_dashboard import StudentDashboard, MyCoursesPage
-from views.instructor_dashboard import InstructorDashboard, EnrollmentRequestsPage
+from views.student_dashboard import StudentDashboard, MyCoursesPage, StudentAssignmentsPage
+from views.instructor_dashboard import InstructorDashboard, EnrollmentRequestsPage, SubmissionsPage
 from views.admin_dashboard import AdminDashboard
 from views.courses_page import CoursesPage
 from views.create_course_page import CreateCoursePage
@@ -68,7 +68,9 @@ page_manager.add_page("create_course", CreateCoursePage)
 page_manager.add_page("manage_course", ManageCoursePage)
 page_manager.add_page("manage_resources", ManageResourcesPage)
 page_manager.add_page("enrollment_requests", EnrollmentRequestsPage)
+page_manager.add_page("submissions", SubmissionsPage)
 page_manager.add_page("my_courses", MyCoursesPage)
+page_manager.add_page("student_assignments", StudentAssignmentsPage)
 
 # Show initial page (auth page)
 page_manager.show_page("auth")

@@ -23,8 +23,8 @@ class LatePenaltyDecorator(GradeDecorator):
     def calculate_grade(self, submission: Submission, assignment: Assignments, raw_score: float) -> float:
         base_grade = self._grader.calculate_grade(submission, assignment, raw_score)
         
-        if assignment.dueDate and submission.submittedDate > assignment.dueDate:
-             penalty = assignment.maxGrade * 0.10
+        if assignment.due_date and submission.submitted_date > assignment.due_date:
+             penalty = assignment.max_grade * 0.10
              print(f"Late submission! Deducting {penalty} points.")
              return max(0.0, base_grade - penalty)
         
