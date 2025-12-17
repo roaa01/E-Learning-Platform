@@ -64,6 +64,23 @@ class CreateCoursePage(ctk.CTkFrame):
         )
         self.category_combo.pack(fill="x", pady=5)
         self.category_combo.set("Programming")
+
+        # Level
+        level_label = ctk.CTkLabel(form_frame, text="Level:", font=("Arial", 12, "bold"))
+        level_label.pack(anchor="w", pady=(10, 5))
+        self.level_combo = ctk.CTkComboBox(
+            form_frame,
+            values=["Beginner", "Intermediate", "Advanced"],
+            state="readonly"
+        )
+        self.level_combo.pack(fill="x", pady=5)
+        self.level_combo.set("Beginner")
+
+        # Price
+        price_label = ctk.CTkLabel(form_frame, text="Price ($):", font=("Arial", 12, "bold"))
+        price_label.pack(anchor="w", pady=(10, 5))
+        self.price_entry = ctk.CTkEntry(form_frame, placeholder_text="0.00")
+        self.price_entry.pack(fill="x", pady=5)
         
         # Course Status
         status_label = ctk.CTkLabel(form_frame, text="Status:", font=("Arial", 12, "bold"))
@@ -74,7 +91,7 @@ class CreateCoursePage(ctk.CTkFrame):
             state="readonly"
         )
         self.status_combo.pack(fill="x", pady=5)
-        self.status_combo.set("published")
+        self.status_combo.set("draft")
         
         # Message Label
         self.message_label = ctk.CTkLabel(
@@ -111,6 +128,8 @@ class CreateCoursePage(ctk.CTkFrame):
         title = self.title_entry.get().strip()
         description = self.desc_entry.get("1.0", "end").strip()
         category = self.category_combo.get()
+        level = self.level_combo.get()
+        price_str = self.price_entry.get().strip()
         status = self.status_combo.get()
         
         # Validation
@@ -120,6 +139,15 @@ class CreateCoursePage(ctk.CTkFrame):
         
         if not description:
             self.show_message("Please enter a description", "red")
+            return
+            
+        try:
+            price = float(price_str) if price_str else 0.0
+            if price < 0:
+                self.show_message("Price must be non-negative", "red")
+                return
+        except ValueError:
+            self.show_message("Invalid price format", "red")
             return
         
         try:
@@ -133,7 +161,9 @@ class CreateCoursePage(ctk.CTkFrame):
                 description=description,
                 instructor_id=instructor_id,
                 category_name=category,
-                visibility=status
+                visibility=status,
+                level=level,
+                price=price
             )
             
             if course_id:
@@ -160,6 +190,8 @@ class CreateCoursePage(ctk.CTkFrame):
         self.title_entry.delete(0, "end")
         self.desc_entry.delete("1.0", "end")
         self.category_combo.set("Programming")
+        self.level_combo.set("Beginner")
+        self.price_entry.delete(0, "end")
         self.status_combo.set("draft")
     
     def show_message(self, message: str, color: str):

@@ -76,6 +76,19 @@ class CoursesPage(ctk.CTkFrame):
         self.cat_combo.pack(side="left", padx=5)
         self.cat_combo.set("All Categories")
 
+        # Level Filter
+        self.level_filter = ctk.CTkComboBox(
+            filter_frame, 
+            values=["All Levels", "Beginner", "Intermediate", "Advanced"],
+            width=110
+        )
+        self.level_filter.pack(side="left", padx=5)
+        self.level_filter.set("All Levels")
+
+        # Price Filter
+        self.price_filter = ctk.CTkEntry(filter_frame, placeholder_text="Max Price", width=80)
+        self.price_filter.pack(side="left", padx=5)
+
         # Recommendation Toggle Button
         self.rec_btn = ctk.CTkButton(
             filter_frame,
@@ -294,6 +307,27 @@ class CoursesPage(ctk.CTkFrame):
             text_color="lightgreen"
         )
         modules_label.pack(side="left", padx=5)
+
+        # Level
+        level_val = course.get("level", "Beginner")
+        level_label = ctk.CTkLabel(
+            info_frame,
+            text=f"[{level_val}]",
+            font=("Arial", 10),
+            text_color="orange"
+        )
+        level_label.pack(side="left", padx=5)
+
+        # Price
+        price_val = course.get("price", 0.0)
+        price_text = f"${price_val}" if price_val > 0 else "Free"
+        price_label = ctk.CTkLabel(
+            info_frame,
+            text=price_text,
+            font=("Arial", 10, "bold"),
+            text_color="yellow"
+        )
+        price_label.pack(side="left", padx=5)
         
         # Action buttons frame
         actions = ctk.CTkFrame(card, fg_color="transparent")
@@ -489,6 +523,22 @@ class CoursesPage(ctk.CTkFrame):
                     val = self.cat_combo.get()
                     if val and val != "All Categories":
                         cat_filter = val
+                
+                # Level Filter
+                if hasattr(self, 'level_filter'):
+                    l_val = self.level_filter.get()
+                    if l_val and l_val != "All Levels":
+                        criteria.level = l_val
+                
+                # Price Filter
+                if hasattr(self, 'price_filter'):
+                    p_val = self.price_filter.get().strip()
+                    if p_val:
+                        try:
+                            criteria.max_price = float(p_val)
+                        except ValueError:
+                            pass
+
                 instr_filter = getattr(self, 'current_instructor_filter', None) 
                 
                 criteria.query = query if query else None
@@ -499,6 +549,9 @@ class CoursesPage(ctk.CTkFrame):
                 title_parts = []
                 if query: title_parts.append(f"Query: '{query}'")
                 if cat_filter: title_parts.append(f"Category: '{cat_filter}'")
+                if criteria.level: title_parts.append(f"Level: '{criteria.level}'")
+                if criteria.max_price is not None: title_parts.append(f"Max: ${criteria.max_price}")
+                
                 if instr_filter: 
                     name = getattr(self, 'current_instructor_name', instr_filter)
                     title_parts.append(f"Instructor: '{name}'")
