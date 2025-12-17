@@ -2,6 +2,12 @@
 from typing import Optional
 from datetime import datetime
 from bson import ObjectId
+from enum import Enum
+
+class UserRole(Enum):
+    STUDENT = "student"
+    INSTRUCTOR = "instructor"
+    ADMIN = "admin"
 
 class User:
     def __init__(self, id: Optional[str], name: str, email: str,
@@ -19,15 +25,6 @@ class User:
         """Log out user by clearing ID"""
         self.id = None
 
-    def updateProfile(self, full_name: str = None, email: str = None) -> bool:
-        """Update user profile (in-memory only, use AuthService to persist)"""
-        if self.id is None:
-            return False
-        if full_name:
-            self.full_name = full_name
-        if email:
-            self.email = email
-        return True
 
 class Student(User):
     def __init__(self, id: Optional[str], name: str, email: str, full_name: Optional[str] = None, password_hash: Optional[str] = None):

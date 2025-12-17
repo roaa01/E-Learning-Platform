@@ -120,3 +120,54 @@ class AuthService:
             full_name=doc.get("full_name"),
             password_hash=doc.get("password_hash")
         )
+
+    def authorize(self, user: User, action: str) -> bool:
+        """
+        Check if the user is authorized to perform the given action.
+        """
+        if not user or not user.role:
+            return False
+            
+        try:
+             # Ensure we have an Enum
+            if isinstance(user.role, str):
+                from models.user import UserRole
+                role_enum = UserRole(user.role.strip().lower())
+            else:
+                role_enum = user.role
+        except ValueError:
+            return False
+        
+        from models.user import UserRole
+
+        # 1. Admin
+        if role_enum == UserRole.ADMIN:
+            return True
+            
+        # 2. Instructor Permissions
+        if role_enum == UserRole.INSTRUCTOR:
+            if action in [
+                "create_course", 
+                "edit_course", 
+                "delete_course", 
+                "view_submissions", 
+                "grade_submission",
+                "approve_enrollment",
+                "view_my_courses"
+            ]:
+                return True
+            return False
+
+        # 3. Student Permissions
+        if role_enum == UserRole.STUDENT:
+            if action in [
+                "enroll_course", 
+                "view_course_content", 
+                "submit_assignment",
+                "view_my_courses"
+            ]:
+                return True
+            return False
+
+        # Default deny
+        return False
