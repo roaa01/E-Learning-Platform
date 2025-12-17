@@ -6,6 +6,7 @@ from database.seed import get_database
 from models.SearchCriteria import SearchCriteria
 from patterns.search.filter_search_strategy import FilterSearchStrategy
 from patterns.search.recommendation_search_strategy import RecommendationSearchStrategy
+from patterns.search.search_context import SearchContext
 from database.category_service import CategoryService
 from database.authservice import AuthService
 
@@ -23,6 +24,7 @@ class CoursesPage(ctk.CTkFrame):
             db.get_collection("courses")
         )
         self.search_strategy = FilterSearchStrategy()
+        self.search_context = SearchContext(self.search_strategy)
         self.category_service = CategoryService() # For populating dropdown
         # Initialize AuthService for instructor lookup
         db = get_database()
@@ -221,8 +223,10 @@ class CoursesPage(ctk.CTkFrame):
                 # Fetch user doc
                 u = self.auth_service.get_user_by_id(instr_id)
                 if u:
-                    instr_name = u.get("name") or u.get("full_name") or u.get("email") or "Instructor"
-            except:
+                    # User object returned, access attributes directly
+                    instr_name = getattr(u, "name", None) or getattr(u, "full_name", None) or getattr(u, "email", None) or "Instructor"
+            except Exception as e:
+                print(f"Error fetching instructor: {e}")
                 pass
         
         instr_label = ctk.CTkLabel(
@@ -401,51 +405,52 @@ class CoursesPage(ctk.CTkFrame):
 
         if self.filter_mode == "instructor" and self.filter_id:
             # Instructor Dashboard View (My Courses)
+            # This remains a direct service call as it's a specific "management" view 
+            # rather than a "search" view, but could be refactored into a strategy later.
             courses = self.course_service.get_courses_by_instructor(self.filter_id)
             self.title_label.configure(text="My Courses")
         
-        elif self.is_recommendation_mode:
-            # Recommendations View
-            criteria.sort_by = "recommended"
-            courses_objects = self.recommendation_strategy.search(criteria)
-            courses = [c.to_dict() for c in courses_objects]
-            self.title_label.configure(text="Recommended for You")
-        
         else:
-            # Standard Browse View
-            query = getattr(self, "current_search_query", "")
+            # Use SearchContext for both Recommendation and Standard modes
             
-            # Get category from dropdown
-            cat_filter = None
-            if hasattr(self, 'cat_combo'):
-                val = self.cat_combo.get()
-                if val and val != "All Categories":
-                    cat_filter = val
-            
-            # Instructor filter from click (Browse Mode)
-            instr_filter = getattr(self, 'current_instructor_filter', None) 
-            
-            # Update criteria
-            criteria.query = query if query else None
-            criteria.category = cat_filter if cat_filter else None
-            criteria.instructor_id = instr_filter if instr_filter else None
-            
-            # Execute Search
-            course_objects = self.search_strategy.search(criteria)
-            courses = [c.to_dict() for c in course_objects]
-            
-            # Update Title
-            title_parts = []
-            if query: title_parts.append(f"Query: '{query}'")
-            if cat_filter: title_parts.append(f"Category: '{cat_filter}'")
-            if instr_filter: 
-                name = getattr(self, 'current_instructor_name', instr_filter)
-                title_parts.append(f"Instructor: '{name}'")
-            
-            if not title_parts:
-                self.title_label.configure(text="Available Courses")
+            if self.is_recommendation_mode:
+                 # Switch to Recommendation Strategy
+                self.search_context.set_strategy(self.recommendation_strategy)
+                criteria.sort_by = "recommended"
+                self.title_label.configure(text="Recommended for You")
             else:
-                self.title_label.configure(text=f"Results: {', '.join(title_parts)}")
+                # Switch to Standard Filter Strategy
+                self.search_context.set_strategy(self.search_strategy)
+                
+                # ... existing param logic ...
+                query = getattr(self, "current_search_query", "")
+                cat_filter = None
+                if hasattr(self, 'cat_combo'):
+                    val = self.cat_combo.get()
+                    if val and val != "All Categories":
+                        cat_filter = val
+                instr_filter = getattr(self, 'current_instructor_filter', None) 
+                
+                criteria.query = query if query else None
+                criteria.category = cat_filter if cat_filter else None
+                criteria.instructor_id = instr_filter if instr_filter else None
+                
+                # Update Title
+                title_parts = []
+                if query: title_parts.append(f"Query: '{query}'")
+                if cat_filter: title_parts.append(f"Category: '{cat_filter}'")
+                if instr_filter: 
+                    name = getattr(self, 'current_instructor_name', instr_filter)
+                    title_parts.append(f"Instructor: '{name}'")
+                
+                if not title_parts:
+                    self.title_label.configure(text="Available Courses")
+                else:
+                    self.title_label.configure(text=f"Results: {', '.join(title_parts)}")
+
+            # Execute via Context
+            course_objects = self.search_context.execute_search(criteria)
+            courses = [c.to_dict() for c in course_objects]
 
         # Update Pagination UI
         self.page_label.configure(text=f"Page {self.current_page}")

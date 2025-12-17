@@ -46,12 +46,12 @@ class CategorySearchStrategy(SearchStrategy):
                 id=doc.get("id"),
                 title=doc.get("title"),
                 description=doc.get("description"),
-                instructorId=doc.get("instructorId"),
-                categoryId=doc.get("categoryId", 0),
+                instructor_id=doc.get("instructorId"),
+                category_id=doc.get("categoryId", 0),
                 level=doc.get("level", "Beginner"),
                 price=doc.get("price", 0.0),
                 status=doc.get("status"),
-                createdDate=doc.get("createdDate"),
+                created_date=doc.get("createdDate"),
                 modules=[]
             )
             obj_list.append(c)
