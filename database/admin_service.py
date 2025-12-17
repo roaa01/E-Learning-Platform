@@ -1,8 +1,7 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from bson import ObjectId
 from database.seed import get_database
 from database.course_service import CourseService
-from models.user import UserRole
 
 class AdminService:
     def __init__(self):
@@ -32,8 +31,8 @@ class AdminService:
             pass
         
         # Fallback to string id
-        res = self.users.delete_one({"id": user_id})
-        return res.deleted_count > 0
+       # res = self.users.delete_one({"id": user_id})
+       # return res.deleted_count > 0
 
     def get_all_courses(self) -> List[Dict[str, Any]]:
         """Get all courses (delegated)"""

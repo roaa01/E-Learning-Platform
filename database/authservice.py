@@ -7,18 +7,16 @@ from models.user import User
 class AuthService:
     def __init__(self, user_collection):
         self.users = user_collection
-    def sign_up(self, role, name, email, password, full_name=None):
+    def sign_up(self, role, name, email, password):
         # Normalize role to lowercase for the factory and DB
-        try:
-            role_norm = (role or "").strip().lower()
 
-            # Build user object (factory) and DB document
+             #Build user object (factory) and DB document
             user = UserFactory.create_user(
-                role_norm,
-                id=None,
+                role,
+                id=None, # database 
                 name=name,
                 email=email,
-                password_hash=None,
+                password_hash=None, # database
             )
 
             password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
@@ -28,18 +26,18 @@ class AuthService:
             data = {
                 "name": name,
                 "email": email,
-                "password_hash": password_hash,
-                "role": role_norm,
+                "passwordHash": password_hash,
+                "role": role,
             }
 
             # Add role-specific fields to the document
-            if role_norm == "instructor":
-                data["courses_teaching"] = []
-            elif role_norm == "student":
-                data["enrolled_courses"] = []
-            data["created_at"] = datetime.now()
+            if role == "instructor":
+                data["coursesTeaching"] = []
+            elif role == "student":
+                data["enrolledCourses"] = []
+            data["createdAt"] = datetime.now()
 
-
+        #check if email registered before
             try:
                 result = self.users.insert_one(data)
                 user.id = str(result.inserted_id)
@@ -47,84 +45,60 @@ class AuthService:
             except DuplicateKeyError:
                 # Email already exists
                 return None
-        except Exception as e:
-            # Unexpected error (factory mismatch, validation, etc.)
-            print(f"sign_up error: {e}")
-            return None
-    def log_in(self, email_or_name, password):
+    def log_in(self, email, password):
         user_doc = self.users.find_one({
             "$or": [
-                {"email": email_or_name},
-                {"name": email_or_name}
+                {"email": email},
             ]
         })
 
         if not user_doc:
             return None
 
-        if not bcrypt.checkpw(password.encode(), user_doc["password_hash"].encode()):
+        if not bcrypt.checkpw(password.encode(), user_doc["passwordHash"].encode()):
             return None
 
         # Create correct User object using factory
-        name_value = user_doc.get("name") or user_doc.get("email")
+        name_value = user_doc.get("email")
         return UserFactory.create_user(
             user_doc["role"],
             id=str(user_doc["_id"]),
             name=name_value,
             email=user_doc.get("email"),
-            full_name=user_doc.get("full_name"),
-            password_hash=user_doc.get("password_hash")
+            password_hash=user_doc.get("passwordHash")
         )
-    def update_profile(self, user: User, full_name=None, email=None):
-        if user.id is None:
-            return False
-        update_fields = {}
-        if full_name: 
-            update_fields["full_name"] = full_name
-        if email: 
-            update_fields["email"] = email
-        if not update_fields:
-            return False
-        try:
-            self.users.update_one({"_id": ObjectId(user.id)}, {"$set": update_fields})
-            user.updateProfile(full_name, email)  # update object
-            return True
-        except DuplicateKeyError:
-            return False
-
     def get_user_by_id(self, user_id):
         """Get user by ID and return User object"""
-        doc = None
+        temp = None
         
         try:
             # Try ObjectId first
-            doc = self.users.find_one({"_id": ObjectId(user_id)})
+            temp = self.users.find_one({"_id": ObjectId(user_id)})
         except (TypeError, ValueError):
             # If not a valid ObjectId, try as string
-            doc = self.users.find_one({"_id": user_id})
+            temp = self.users.find_one({"_id": user_id})
         
-        if not doc:
+        if not temp:
             # Fallback for seeded string IDs
-            doc = self.users.find_one({"id": user_id})
+            temp = self.users.find_one({"id": user_id})
         
-        if not doc:
+        if not temp:
             return None
         
         # Return User object for consistency
-        name_value = doc.get("name") or doc.get("email")
+        name_value = temp.get("email")
         return UserFactory.create_user(
-            doc["role"],
-            id=str(doc["_id"]),
+            temp["role"],
+            id=str(temp["_id"]),
             name=name_value,
-            email=doc.get("email"),
-            full_name=doc.get("full_name"),
-            password_hash=doc.get("password_hash")
+            email=temp.get("email"),
+            password_hash=temp.get("passwordHash")
         )
-
     def authorize(self, user: User, action: str) -> bool:
         """
         Check if the user is authorized to perform the given action.
         """
+        #access control
         if not user or not user.role:
             return False
             
@@ -140,11 +114,11 @@ class AuthService:
         
         from models.user import UserRole
 
-        # 1. Admin
+        # 1 Admin
         if role_enum == UserRole.ADMIN:
             return True
             
-        # 2. Instructor Permissions
+        # 2 Instructor 
         if role_enum == UserRole.INSTRUCTOR:
             if action in [
                 "create_course", 
@@ -158,7 +132,7 @@ class AuthService:
                 return True
             return False
 
-        # 3. Student Permissions
+        # 3 Student 
         if role_enum == UserRole.STUDENT:
             if action in [
                 "enroll_course", 
@@ -169,5 +143,5 @@ class AuthService:
                 return True
             return False
 
-        # Default deny
+        # Default 
         return False

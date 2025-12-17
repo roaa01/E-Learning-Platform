@@ -165,7 +165,7 @@ class StudentAssignmentsPage(ctk.CTkFrame):
         
         found_any = False
         for course in enrolled_courses:
-            course_id = course.get("course_id")
+            course_id = course.get("courseId")
             course_title = course.get("title", "Unknown Course")
             
             full_course = self.course_service.get_course(course_id)
@@ -374,7 +374,7 @@ class MyCoursesPage(ctk.CTkFrame):
         view_btn = ctk.CTkButton(
             btn_frame,
             text="Open Course",
-            command=lambda: self.open_course(course.get("course_id")),
+            command=lambda: self.open_course(course.get("courseId")),
             width=120,
             height=30,
             fg_color="blue",

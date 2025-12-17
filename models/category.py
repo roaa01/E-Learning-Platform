@@ -12,7 +12,7 @@ class Category:
     def to_dict(self):
         """Convert to dictionary for serialization"""
         return {
-            "category_id": self.category_id,
+            "categoryId": self.category_id,
             "name": self.name,
             "description": self.description,
             "courses": [c.id for c in self.courses if c.id] # Store only IDs

@@ -82,13 +82,12 @@ def ensure_collections_and_indexes():
         enrollments.drop_index("user_id_1_course_id_1")
     except Exception:
         pass
-    enrollments.create_index([("student_id", 1), ("course_id", 1)], unique=True)
+    # Use camelCase keys for the index to match Enrollment model
+    enrollments.create_index([("studentId", 1), ("courseId", 1)], unique=True)
     
     assignments = db.get_collection("assignments")
     assignments.create_index("courseId")  # Note: Using camelCase to match Assignment model
     
-    # migrate any existing plaintext passwords to hashed field, then seed
-    migrate_plain_passwords()
     seed_initial_data()
 
 def seed_initial_data():
@@ -101,9 +100,9 @@ def seed_initial_data():
             "_id": ObjectId(),
             "name": "admin",
             "email": "admin@elearning.com",
-            "password_hash": bcrypt.hashpw("123".encode(), bcrypt.gensalt()).decode(),
+            "passwordHash": bcrypt.hashpw("123".encode(), bcrypt.gensalt()).decode(),
             "role": "admin",
-            "created_at": datetime.utcnow(),
+            "createdAt": datetime.utcnow(),
         }
         try:
             users.insert_one(admin)
@@ -118,10 +117,10 @@ def seed_initial_data():
             "_id": ObjectId(),
             "name": "John Doe",
             "email": "instructor@elearning.com",
-            "password_hash": bcrypt.hashpw("123".encode(), bcrypt.gensalt()).decode(),
+            "passwordHash": bcrypt.hashpw("123".encode(), bcrypt.gensalt()).decode(),
             "role": "instructor",
-            "courses_teaching": [],
-            "created_at": datetime.utcnow(),
+            "coursesTeaching": [],
+            "createdAt": datetime.utcnow(),
         }
         try:
             users.insert_one(instructor)
@@ -136,10 +135,10 @@ def seed_initial_data():
             "_id": ObjectId(),
             "name": "Alice Smith",
             "email": "student1@elearning.com",
-            "password_hash": bcrypt.hashpw("123".encode(), bcrypt.gensalt()).decode(),
+            "passwordHash": bcrypt.hashpw("123".encode(), bcrypt.gensalt()).decode(),
             "role": "student",
-            "enrolled_courses": [],
-            "created_at": datetime.utcnow(),
+            "enrolledCourses": [],
+            "createdAt": datetime.utcnow(),
         }
         try:
             users.insert_one(student1)
@@ -154,10 +153,10 @@ def seed_initial_data():
             "_id": ObjectId(),
             "name": "Bob Johnson",
             "email": "student2@elearning.com",
-            "password_hash": bcrypt.hashpw("123".encode(), bcrypt.gensalt()).decode(),
+            "passwordHash": bcrypt.hashpw("123".encode(), bcrypt.gensalt()).decode(),
             "role": "student",
-            "enrolled_courses": [],
-            "created_at": datetime.utcnow(),
+            "enrolledCourses": [],
+            "createdAt": datetime.utcnow(),
         }
         try:
             users.insert_one(student2)
@@ -166,27 +165,6 @@ def seed_initial_data():
             print(f"Error creating student2: {e}")
     else:
         print("Student2 user already exists")
-
-
-def migrate_plain_passwords():
-    """Find documents with plaintext 'password' field, hash them into 'password_hash' and remove 'password'."""
-    db = get_database()
-    if db is None:
-        return
-    users = db.get_collection("users")
-    docs = list(users.find({"password": {"$exists": True}}))
-    if not docs:
-        return
-    for d in docs:
-        plain = d.get("password")
-        if not plain:
-            continue
-        try:
-            ph = bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
-            users.update_one({"_id": d["_id"]}, {"$set": {"password_hash": ph}, "$unset": {"password": ""}})
-            print(f"Migrated password for user {d.get('email') or d.get('_id')}")
-        except Exception as e:
-            print(f"Failed to migrate user {d.get('email') or d.get('_id')}: {e}")
 
 
 def clear_database():

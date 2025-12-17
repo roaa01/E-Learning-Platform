@@ -203,8 +203,8 @@ class CoursesPage(ctk.CTkFrame):
         
         try:
             enrollment = enrollments.find_one({
-                "student_id": ObjectId(student_id),
-                "course_id": course_id
+                "studentId": ObjectId(student_id),
+                "courseId": course_id
             })
             if enrollment:
                 return enrollment.get("status", "pending")
@@ -221,8 +221,8 @@ class CoursesPage(ctk.CTkFrame):
         try:
             # Delete the rejected enrollment
             enrollments.delete_one({
-                "student_id": ObjectId(user.id),
-                "course_id": course_id
+                "studentId": ObjectId(user.id),
+                "courseId": course_id
             })
             # Create new enrollment request
             success = self.enrollment_service.enroll_student(user, course_id)

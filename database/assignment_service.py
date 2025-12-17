@@ -2,7 +2,7 @@ from datetime import datetime
 from bson import ObjectId
 from typing import Optional, List, Dict, Any
 from .seed import get_database
-from models.assignment import Assignments, Submission
+from models.assignment import Assignments
 
 class AssignmentService:
     def __init__(self):

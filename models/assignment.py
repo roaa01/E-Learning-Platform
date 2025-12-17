@@ -15,7 +15,7 @@ class Assignments:
     created_at: datetime = field(default_factory=datetime.utcnow)
 
     def to_dict(self):
-        """Convert to dictionary for MongoDB (using camelCase for DB consistency)"""
+        """Convert to dictionary for MongoDB"""
         return {
             "courseId": self.course_id,
             "title": self.title,
@@ -23,7 +23,7 @@ class Assignments:
             "dueDate": self.due_date,
             "submissionType": self.submission_type,
             "maxGrade": self.max_grade,
-            "created_at": self.created_at
+            "createdAt": self.created_at
         }
     
     def is_late(self, submission_date: datetime) -> bool:

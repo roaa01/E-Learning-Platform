@@ -73,7 +73,7 @@ class LoginPage(ctk.CTkFrame):
         title_label.pack(pady=20)
         
         # Email/Username
-        email_label = ctk.CTkLabel(self, text="Email or Username")
+        email_label = ctk.CTkLabel(self, text="Email")
         email_label.pack()
         
         self.email_entry = ctk.CTkEntry(self, width=250)
@@ -155,7 +155,7 @@ class SignupPage(ctk.CTkFrame):
         role_label.pack()
         
         self.role_option = ctk.CTkComboBox(
-            self, values=["Student", "Instructor", "Admin"],
+            self, values=["Student", "Instructor"],
         )
         self.role_option.pack(pady=5)
         

@@ -19,3 +19,17 @@ class SearchCriteria:
     # Pagination
     page: int = 1
     page_size: int = 10
+
+    def to_dict(self):
+        return {
+            "query": self.query,
+            "category": self.category,
+            "filterType": self.filter_type,
+            "level": self.level,
+            "minPrice": self.min_price,
+            "maxPrice": self.max_price,
+            "instructorId": self.instructor_id,
+            "sortBy": self.sort_by,
+            "page": self.page,
+            "pageSize": self.page_size
+        }

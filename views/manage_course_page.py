@@ -56,17 +56,6 @@ class ManageCoursePage(ctk.CTkFrame):
         )
         self.status_btn.pack(side="right", padx=(6, 0))
         
-        # View Enrollments Button
-        self.enrollments_btn = ctk.CTkButton(
-            header_frame,
-            text="Enrollments",
-            command=self.show_enrollments_dialog,
-            width=100,
-            fg_color="purple",
-            hover_color="darkviolet"
-        )
-        self.enrollments_btn.pack(side="right", padx=(6, 0))
-        
         back_btn = ctk.CTkButton(
             header_frame,
             text="Back",

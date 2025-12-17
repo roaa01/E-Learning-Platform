@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from bson import ObjectId
@@ -20,7 +20,7 @@ class Lesson:
             "type": self.type,
             "resources": self.resources,
         }
-    
+
 
 @dataclass
 class Module:

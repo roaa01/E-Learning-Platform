@@ -2,8 +2,7 @@ from typing import Optional, Dict, Any, List
 from bson import ObjectId
 from datetime import datetime
 from .seed import get_database
-from models.course import Course, Module, Lesson
-
+from database.category_service import CategoryService
 
 class CourseService:
     def __init__(self):
@@ -12,7 +11,7 @@ class CourseService:
 
     def create_course(self, title: str, description: str, instructor_id: str, category_name: str = "", visibility: str = "draft", level: str = "Beginner", price: float = 0.0) -> str:
         # Use UML attribute names: id, instructorId, createdDate, status
-        from database.category_service import CategoryService
+
         cat_service = CategoryService()
         
         # logic to find or create category
@@ -85,7 +84,7 @@ class CourseService:
             # ensure modules structure is serializable
             updates["modules"] = [m if isinstance(m, dict) else m.to_dict() for m in updates["modules"]]
             
-        print(f"[DEBUG] Attempting update for course_id: {course_id}")
+        print(f"Attempting update for course_id: {course_id}")
         
         matched = False
         
@@ -94,7 +93,7 @@ class CourseService:
             oid = ObjectId(course_id)
             res = self.courses.update_one({"_id": oid}, {"$set": updates})
             if res.matched_count > 0:
-                print(f"[DEBUG] Matched by _id")
+                print(f"Matched by _id")
                 matched = True
         except Exception:
             # Not a valid ObjectId format, ignore this step
@@ -105,10 +104,10 @@ class CourseService:
             # We don't try/except here because we expect this to work or be the final attempt
             res = self.courses.update_one({"id": course_id}, {"$set": updates})
             if res.matched_count > 0:
-                print(f"[DEBUG] Matched by custom id")
+                print(f"Matched by custom id")
                 matched = True
             else:
-                print(f"[DEBUG] No match found for id: {course_id}")
+                print(f"No match found for id: {course_id}")
 
         return matched
 
