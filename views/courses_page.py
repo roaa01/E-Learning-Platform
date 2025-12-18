@@ -146,7 +146,7 @@ class CoursesPage(ctk.CTkFrame):
         """Set filter to specific instructor and refresh"""
         self.current_instructor_filter = instructor_id
         self.current_instructor_name = instructor_name
-        self.is_recommendation_mode = False # Disable rec mode when filtering specific
+        self.is_recommendation_mode = False 
         self.current_page = 1
         self.refresh_courses()
         
@@ -419,24 +419,69 @@ class CoursesPage(ctk.CTkFrame):
         ctk.CTkLabel(body, text="Description:", font=("Arial", 12, "bold")).pack(anchor="w", pady=(6,2))
         ctk.CTkLabel(body, text=course.get("description", ""), wraplength=640, text_color="gray").pack(anchor="w", pady=(0,8))
 
-        # Modules and lessons
-        modules = course.get("modules", [])
-        if not modules:
-            ctk.CTkLabel(body, text="No modules yet", text_color="gray").pack(pady=10)
+        # Check if student is enrolled with approved status
+        is_enrolled_approved = False
+        if user and getattr(user, 'role', None) == 'student':
+            enrollment_status = self.get_enrollment_status(str(user.id), course_id)
+            is_enrolled_approved = (enrollment_status == "approved")
+        
+        # For instructors and admins, always show content
+        is_instructor_or_admin = False
+        if user:
+            role = getattr(user, 'role', None)
+            uid = getattr(user, 'id', None) or getattr(user, '_id', None)
+            uid = str(uid) if uid else ""
+            if role == 'admin' or (role == 'instructor' and uid and uid == str(course.get('instructorId'))):
+                is_instructor_or_admin = True
+
+        # Modules and lessons - only show if enrolled/approved OR instructor/admin
+        if is_enrolled_approved or is_instructor_or_admin:
+            modules = course.get("modules", [])
+            if not modules:
+                ctk.CTkLabel(body, text="No modules yet", text_color="gray").pack(pady=10)
+            else:
+                for m in modules:
+                    m_frame = ctk.CTkFrame(body, fg_color="gray20")
+                    m_frame.pack(fill="x", pady=6)
+                    ctk.CTkLabel(m_frame, text=m.get("title","Module"), font=("Arial", 12, "bold")).pack(anchor="w", padx=8, pady=(6,2))
+                    for l in m.get("lessons", []):
+                        lesson_text = f"- {l.get('title','Lesson')} ({l.get('type','')})"
+                        ctk.CTkLabel(m_frame, text=lesson_text, wraplength=620).pack(anchor="w", padx=18)
+                        # show resources (if any)
+                        resources = l.get("resources", [])
+                        if resources:
+                            for r in resources:
+                                rtxt = f"   • [{r.get('type','')}] {r.get('name','')} - {r.get('url','') or ''}"
+                                ctk.CTkLabel(m_frame, text=rtxt, text_color="gray", wraplength=620).pack(anchor="w", padx=28, pady=(0,2))
         else:
-            for m in modules:
-                m_frame = ctk.CTkFrame(body, fg_color="gray20")
-                m_frame.pack(fill="x", pady=6)
-                ctk.CTkLabel(m_frame, text=m.get("title","Module"), font=("Arial", 12, "bold")).pack(anchor="w", padx=8, pady=(6,2))
-                for l in m.get("lessons", []):
-                    lesson_text = f"- {l.get('title','Lesson')} ({l.get('type','')})"
-                    ctk.CTkLabel(m_frame, text=lesson_text, wraplength=620).pack(anchor="w", padx=18)
-                    # show resources (if any)
-                    resources = l.get("resources", [])
-                    if resources:
-                        for r in resources:
-                            rtxt = f"   • [{r.get('type','')}] {r.get('name','')} - {r.get('url','') or ''}"
-                            ctk.CTkLabel(m_frame, text=rtxt, text_color="gray", wraplength=620).pack(anchor="w", padx=28, pady=(0,2))
+            # Student is not enrolled or enrollment is not approved
+            restricted_frame = ctk.CTkFrame(body, fg_color="gray20", border_width=2, border_color="orange")
+            restricted_frame.pack(fill="x", pady=20, padx=20)
+            
+            ctk.CTkLabel(
+                restricted_frame, 
+                text="🔒 Course Content Restricted", 
+                font=("Arial", 14, "bold"),
+                text_color="orange"
+            ).pack(pady=(15, 5))
+            
+            if user and getattr(user, 'role', None) == 'student':
+                enrollment_status = self.get_enrollment_status(str(user.id), course_id)
+                if enrollment_status == "pending":
+                    message = "Your enrollment request is pending instructor approval."
+                elif enrollment_status == "rejected":
+                    message = "Your enrollment request was rejected. You can re-apply from the course card."
+                else:
+                    message = "You need to enroll in this course to view the content."
+            else:
+                message = "Only enrolled students can view course content."
+            
+            ctk.CTkLabel(
+                restricted_frame, 
+                text=message,
+                wraplength=600,
+                text_color="gray"
+            ).pack(pady=(5, 15), padx=20)
 
         # Footer actions
         footer = ctk.CTkFrame(dlg)
