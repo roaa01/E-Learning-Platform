@@ -86,7 +86,7 @@ class AuthService:
             return None
         
         # Return User object for consistency
-        name_value = temp.get("email")
+        name_value = temp.get("name") or temp.get("fullName") or temp.get("email")
         return UserFactory.create_user(
             temp["role"],
             id=str(temp["_id"]),
