@@ -247,8 +247,27 @@ class ManageResourcesPage(ctk.CTkFrame):
             print(f"Resource upload error: {e}")
     
     def delete_resource(self, index):
-        """Delete a resource (placeholder)"""
-        self.show_message("Resource deletion not yet implemented", "orange")
+        """Delete a resource"""
+        if not self.course_id or not self.module_id or not self.lesson_id:
+            return
+
+        try:
+            success = self.course_service.delete_resource(
+                self.course_id, 
+                self.module_id, 
+                self.lesson_id, 
+                index
+            )
+            
+            if success:
+                self.show_message("Resource deleted successfully", "green")
+                self.refresh_display()
+            else:
+                self.show_message("Failed to delete resource", "red")
+                
+        except Exception as e:
+            self.show_message(f"Error deleting resource: {str(e)}", "red")
+            print(f"Delete resource error: {e}")
     
     def clear_form(self):
         """Clear the form fields"""

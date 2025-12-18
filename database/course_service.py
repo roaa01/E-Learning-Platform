@@ -262,3 +262,28 @@ class CourseService:
                 return False
         return res.modified_count > 0
 
+    def delete_resource(self, course_id: str, module_id: str, lesson_id: str, resource_index: int) -> bool:
+        """Delete a resource from a lesson by index"""
+        course = self.get_course(course_id)
+        if not course:
+            return False
+            
+        modules = course.get("modules", [])
+        found = False
+        
+        for module in modules:
+            if module.get("id") == module_id:
+                lessons = module.get("lessons", [])
+                for lesson in lessons:
+                    if lesson.get("id") == lesson_id:
+                        resources = lesson.get("resources", [])
+                        if 0 <= resource_index < len(resources):
+                            resources.pop(resource_index)
+                            found = True
+                        break
+                break
+        
+        if found:
+            return self.update_course(course_id, {"modules": modules})
+        return False
+
