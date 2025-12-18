@@ -64,9 +64,22 @@ class CreateCoursePage(ctk.CTkFrame):
         categories = category_service.get_all_categories()
         cat_names = [c.get("name", "Unknown") for c in categories]
         
-        # Fallback to default categories if none exist
-        if not cat_names:
-            cat_names = ["Programming", "Web Development", "Data Science", "Design", "Business", "Other"]
+        # Combine with default categories to ensure a good selection
+        default_cats = ["Programming", "Web Development", "Data Science", "Design", "Business", "Marketing", "Music", "Other"]
+        
+        # Create a set for uniqueness, but keep order of defaults for better UX
+        final_cats = []
+        existing_names = set(cat_names)
+        
+        # Add DB categories first
+        final_cats.extend(cat_names)
+        
+        # Add defaults that aren't in DB
+        for cat in default_cats:
+            if cat not in existing_names:
+                final_cats.append(cat)
+                
+        cat_names = final_cats
         
         self.category_combo = ctk.CTkComboBox(
             form_frame,
