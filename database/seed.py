@@ -45,17 +45,23 @@ class Database:
 db = None
 
 def init_db():
-    "Initialize the database connection"
+    """Initialize the database connection"""
     global db
     db = Database.connect()
     return db
 
 def get_database():
-    "Get the database instance"
-    global db
-    if db is None:
-        db = Database.connect()
-    return db
+    """Get the database instance - now uses Singleton pattern"""
+    try:
+        from patterns.singleton import DatabaseSingleton
+        return DatabaseSingleton.getInstance().get_database()
+    except Exception as e:
+        # Fallback to old method if singleton fails
+        print(f"Singleton access failed: {e}, using fallback")
+        global db
+        if db is None:
+            db = Database.connect()
+        return db
 
 def ensure_collections_and_indexes():
     "Create collections and indexes"

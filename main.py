@@ -1,7 +1,8 @@
 import customtkinter as ctk
 from database.authservice import AuthService
 from patterns.factory import UserFactory
-from database.seed import init_db, get_database, ensure_collections_and_indexes
+from patterns.singleton import DatabaseSingleton
+from database.seed import ensure_collections_and_indexes
 
 # Import the page manager and pages
 from views.page_manager import PageManager
@@ -15,9 +16,10 @@ from views.manage_course_page import ManageCoursePage
 from views.manage_resources_page import ManageResourcesPage
 
 # -----------------------------
-# Database Setup
+# Database Setup (Using Singleton Pattern)
 # -----------------------------
-db = init_db()
+db_singleton = DatabaseSingleton.getInstance()
+db = db_singleton.get_database()
 ensure_collections_and_indexes()
 
 if db is not None:
