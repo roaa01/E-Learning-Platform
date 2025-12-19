@@ -16,7 +16,6 @@ class User:
     name: str
     email: str
     role: str
-    full_name: Optional[str] = None
     password_hash: Optional[str] = None
 
 
@@ -28,7 +27,6 @@ class User:
             "name": self.name,
             "email": self.email,
             "role": self.role,
-            "fullName": self.full_name,
             "passwordHash": self.password_hash
         }
 
@@ -38,8 +36,8 @@ class User:
 
 @dataclass
 class Student(User):
-    def __init__(self, id: Optional[str], name: str, email: str, full_name: Optional[str] = None, password_hash: Optional[str] = None):
-        super().__init__(id, name, email, "student", full_name, password_hash)
+    def __init__(self, id: Optional[str], name: str, email: str, password_hash: Optional[str] = None):
+        super().__init__(id, name, email, "student", password_hash)
 
     def request_enrollment(self, course_id: str):
         """Create enrollment request data (use EnrollmentService to persist)"""
@@ -56,8 +54,8 @@ class Student(User):
 
 @dataclass
 class Instructor(User):
-    def __init__(self, id: Optional[str], name: str, email: str, full_name: Optional[str] = None, password_hash: Optional[str] = None):
-        super().__init__(id, name, email, "instructor", full_name, password_hash)
+    def __init__(self, id: Optional[str], name: str, email: str, password_hash: Optional[str] = None):
+        super().__init__(id, name, email, "instructor", password_hash)
     
     # Note: Database operations moved to InstructorService
     # Use InstructorService.get_created_courses(instructor) instead
@@ -70,6 +68,6 @@ class Admin(User):
         # Filter kwargs to match User fields if needed, or assume correct input
         # User is a dataclass, so __init__ accepts args. 
         # But we must be careful: User's generated init expects positional 'id', 'name', 'email', 'role' first?
-        # No, dataclass init is: __init__(self, id: Union[str, NoneType], name: str, email: str, role: str, full_name: Union[str, NoneType] = None, password_hash: Union[str, NoneType] = None)
+        # No, dataclass init is: __init__(self, id: Union[str, NoneType], name: str, email: str, role: str, password_hash: Union[str, NoneType] = None)
         # So passing **kwargs works if they match these names.
         super().__init__(**kwargs)
