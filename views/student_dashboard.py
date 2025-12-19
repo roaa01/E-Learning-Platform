@@ -1,12 +1,11 @@
 """
 Student Dashboard and My Courses Page
 Consolidated from dashboard_page.py (student content) and student_courses.py
+Refactored to use Facade Pattern
 """
 import customtkinter as ctk
 from tkinter import messagebox
-from database.EnrollmentService import EnrollmentService
-from database.course_service import CourseService
-from database.seed import get_database
+from patterns.facade import StudentPortalFacade
 from views.assignment_view import AssignmentView
 
 
@@ -125,16 +124,7 @@ class StudentAssignmentsPage(ctk.CTkFrame):
     def __init__(self, master, page_manager):
         super().__init__(master)
         self.page_manager = page_manager
-        
-        db = get_database()
-        self.enrollment_service = EnrollmentService(
-            db.get_collection("enrollments"),
-            db.get_collection("courses")
-        )
-        self.course_service = CourseService()
-        
-        from database.assignment_service import AssignmentService
-        self.assignment_service = AssignmentService()
+        self.facade = StudentPortalFacade()
     
     def on_show(self):
         """Refresh content when page is shown"""
@@ -157,70 +147,48 @@ class StudentAssignmentsPage(ctk.CTkFrame):
         scroll.pack(fill="both", expand=True, padx=30, pady=(0, 20))
         
         user = self.page_manager.get_user()
-        enrolled_courses = self.enrollment_service.get_enrolled_courses(user)
         
-        if not enrolled_courses:
-            ctk.CTkLabel(scroll, text="You are not enrolled in any courses yet.", text_color="gray").pack(pady=20)
+        # USE FACADE: Get assignments in one line
+        assignments = self.facade.get_my_assignments(user)
+        
+        if not assignments:
+            ctk.CTkLabel(scroll, text="No assignments found in your enrolled courses.", text_color="gray").pack(pady=20)
             return
         
-        found_any = False
-        for course in enrolled_courses:
-            course_id = course.get("courseId")
-            course_title = course.get("title", "Unknown Course")
+        for data in assignments:
+            # Create a card for each assignment
+            card = ctk.CTkFrame(scroll, fg_color="gray20", border_width=1, border_color="orange")
+            card.pack(fill="x", pady=8, padx=5)
             
-            full_course = self.course_service.get_course(course_id)
-            if not full_course:
-                continue
+            ctk.CTkLabel(card, text=f"📚 {data['course_title']}", font=("Arial", 11), text_color="lightblue").pack(anchor="w", padx=10, pady=(8, 2))
             
-            for module in full_course.get("modules", []):
-                for lesson in module.get("lessons", []):
-                    if lesson.get("type") == "assignment":
-                        found_any = True
-                        assignment_id = lesson.get("content")
-                        assignment_doc = self.assignment_service.get_assignment(assignment_id) if assignment_id else None
-                        
-                        # Get submission status
-                        submission = self.assignment_service.get_submission(assignment_id, str(user.id)) if assignment_id else None
-                        
-                        card = ctk.CTkFrame(scroll, fg_color="gray20", border_width=1, border_color="orange")
-                        card.pack(fill="x", pady=8, padx=5)
-                        
-                        ctk.CTkLabel(card, text=f"📚 {course_title}", font=("Arial", 11), text_color="lightblue").pack(anchor="w", padx=10, pady=(8, 2))
-                        
-                        assign_title = lesson.get("title", "Assignment")
-                        if assignment_doc:
-                            assign_title = assignment_doc.get("title", assign_title)
-                        ctk.CTkLabel(card, text=assign_title, font=("Arial", 14, "bold")).pack(anchor="w", padx=10, pady=2)
-                        
-                        if assignment_doc and assignment_doc.get("dueDate"):
-                            due = assignment_doc.get("dueDate")
-                            due_str = due.strftime("%Y-%m-%d %H:%M") if hasattr(due, 'strftime') else str(due)
-                            ctk.CTkLabel(card, text=f"Due: {due_str}", font=("Arial", 11), text_color="gray").pack(anchor="w", padx=10, pady=2)
-                        
-                        # Show submission status
-                        if submission:
-                            status = submission.get("status", "submitted")
-                            grade = submission.get("grade")
-                            if grade is not None:
-                                status_text = f"✓ Graded: {grade}"
-                                status_color = "lightgreen"
-                            else:
-                                status_text = f"✓ Submitted"
-                                status_color = "lightblue"
-                            ctk.CTkLabel(card, text=status_text, font=("Arial", 11), text_color=status_color).pack(anchor="w", padx=10, pady=2)
-                        
-                        if assignment_id:
-                            ctk.CTkButton(
-                                card,
-                                text="Open Assignment",
-                                width=130,
-                                fg_color="orange",
-                                hover_color="darkorange",
-                                command=lambda aid=assignment_id: self.open_assignment(aid)
-                            ).pack(anchor="e", padx=10, pady=8)
-        
-        if not found_any:
-            ctk.CTkLabel(scroll, text="No assignments found in your enrolled courses.", text_color="gray").pack(pady=20)
+            ctk.CTkLabel(card, text=data['title'], font=("Arial", 14, "bold")).pack(anchor="w", padx=10, pady=2)
+            
+            if data['due_date']:
+                due = data['due_date']
+                due_str = due.strftime("%Y-%m-%d %H:%M") if hasattr(due, 'strftime') else str(due)
+                ctk.CTkLabel(card, text=f"Due: {due_str}", font=("Arial", 11), text_color="gray").pack(anchor="w", padx=10, pady=2)
+            
+            # Show submission status
+            if data['status']:
+                status_text = f"✓ {data['status'].title()}"
+                status_color = "lightblue"
+                
+                if data['grade'] is not None:
+                    status_text = f"✓ Graded: {data['grade']}"
+                    status_color = "lightgreen"
+                    
+                ctk.CTkLabel(card, text=status_text, font=("Arial", 11), text_color=status_color).pack(anchor="w", padx=10, pady=2)
+            
+            # Action Button
+            ctk.CTkButton(
+                card,
+                text="Open Assignment",
+                width=130,
+                fg_color="orange",
+                hover_color="darkorange",
+                command=lambda aid=data['assignment_id']: self.open_assignment(aid)
+            ).pack(anchor="e", padx=10, pady=8)
     
     def open_assignment(self, assignment_id):
         """Open assignment view"""
@@ -237,13 +205,7 @@ class MyCoursesPage(ctk.CTkFrame):
     def __init__(self, master, page_manager):
         super().__init__(master)
         self.page_manager = page_manager
-        
-        db = get_database()
-        self.enrollment_service = EnrollmentService(
-            db.get_collection("enrollments"),
-            db.get_collection("courses")
-        )
-        self.course_service = CourseService()
+        self.facade = StudentPortalFacade()
         
     def on_show(self):
         """Refresh content when page is shown"""
@@ -283,9 +245,9 @@ class MyCoursesPage(ctk.CTkFrame):
         scroll_frame = ctk.CTkScrollableFrame(self)
         scroll_frame.pack(pady=20, padx=30, fill="both", expand=True)
         
-        # Fetch enrolled courses
+        # Fetch enrolled courses using Facade
         user = self.page_manager.get_user()
-        courses = self.enrollment_service.get_enrolled_courses(user)
+        courses = self.facade.get_my_courses(user)
         
         if not courses:
             no_courses_label = ctk.CTkLabel(
@@ -381,20 +343,11 @@ class MyCoursesPage(ctk.CTkFrame):
             hover_color="darkblue"
         )
         view_btn.pack(side="left", padx=5)
-        
-        # View Progress Button
-        progress_btn = ctk.CTkButton(
-            btn_frame,
-            text="My Progress",
-            command=lambda: self.view_progress(course),
-            width=120,
-            height=30
-        )
-        progress_btn.pack(side="left", padx=5)
     
     def open_course(self, course_id):
         """Open the course content/modules in a dialog"""
-        course = self.course_service.get_course(course_id)
+        # USE FACADE to get course details
+        course = self.facade.get_course_details(course_id)
         if not course:
             messagebox.showerror("Error", "Course not found")
             return
