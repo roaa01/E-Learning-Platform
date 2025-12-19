@@ -46,17 +46,6 @@ class DatabaseSingleton:
         """
         return self.__db.get_collection(collection_name)
 
-    def showMessage(self):
-        """
-        Demonstration method matching the UML.
-        Shows database connection status.
-        """
-        print("✓ DatabaseSingleton: Connection active")
-        if self.__db is not None:
-            print(f"  Database: {self.__db.name}")
-            print(f"  Instance ID: {id(self)}")
-
-
 # Convenience function for backward compatibility
 def get_db_singleton():
     """
